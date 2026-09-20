@@ -1,48 +1,42 @@
 import session from "express-session";
 import type { SessionData } from "express-session";
-import { sqlite } from "./database.js";
+import { pool } from "./database.js";
 
 const DEFAULT_MAX_AGE = 30 * 24 * 60 * 60 * 1000;
 
-export class SqliteSessionStore extends session.Store {
+export class PgSessionStore extends session.Store {
   get(sid: string, callback: (err: unknown, session?: SessionData | null) => void): void {
-    try {
-      const row = sqlite.prepare(`SELECT data, expires_at FROM sessions WHERE sid = ?`).get(sid) as
-        | { data: string; expires_at: number }
-        | undefined;
-      if (!row || row.expires_at < Date.now()) {
-        callback(null, null);
-        return;
-      }
-      callback(null, JSON.parse(row.data));
-    } catch (err) {
-      callback(err);
-    }
+    pool
+      .query(`SELECT data, expires_at FROM sessions WHERE sid = $1`, [sid])
+      .then(({ rows }) => {
+        const row = rows[0] as { data: string; expires_at: string } | undefined;
+        if (!row || Number(row.expires_at) < Date.now()) {
+          callback(null, null);
+          return;
+        }
+        callback(null, JSON.parse(row.data));
+      })
+      .catch((err) => callback(err));
   }
 
   set(sid: string, sessionData: SessionData, callback?: (err?: unknown) => void): void {
-    try {
-      const maxAge = sessionData.cookie?.maxAge ?? DEFAULT_MAX_AGE;
-      const expiresAt = Date.now() + maxAge;
-      sqlite
-        .prepare(
-          `INSERT INTO sessions (sid, data, expires_at) VALUES (?, ?, ?)
-           ON CONFLICT(sid) DO UPDATE SET data = excluded.data, expires_at = excluded.expires_at`
-        )
-        .run(sid, JSON.stringify(sessionData), expiresAt);
-      callback?.();
-    } catch (err) {
-      callback?.(err);
-    }
+    const maxAge = sessionData.cookie?.maxAge ?? DEFAULT_MAX_AGE;
+    const expiresAt = Date.now() + maxAge;
+    pool
+      .query(
+        `INSERT INTO sessions (sid, data, expires_at) VALUES ($1, $2, $3)
+         ON CONFLICT (sid) DO UPDATE SET data = excluded.data, expires_at = excluded.expires_at`,
+        [sid, JSON.stringify(sessionData), expiresAt]
+      )
+      .then(() => callback?.())
+      .catch((err) => callback?.(err));
   }
 
   destroy(sid: string, callback?: (err?: unknown) => void): void {
-    try {
-      sqlite.prepare(`DELETE FROM sessions WHERE sid = ?`).run(sid);
-      callback?.();
-    } catch (err) {
-      callback?.(err);
-    }
+    pool
+      .query(`DELETE FROM sessions WHERE sid = $1`, [sid])
+      .then(() => callback?.())
+      .catch((err) => callback?.(err));
   }
 
   touch(sid: string, sessionData: SessionData, callback?: () => void): void {

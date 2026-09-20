@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { db } from "./store.js";
 import type { Applicant, Listing } from "../types/domain.js";
 
-// db points at an in-memory sqlite database for this whole file — see
-// vitest.config.ts (INTERNEZ_DB_PATH=:memory:), read by db/database.ts
-// before this module (or store.ts) is ever imported.
+// db points at a real Postgres database (DATABASE_URL) for this whole file —
+// vitest.globalSetup.ts truncates every table before this suite runs, so
+// each run still starts from a clean slate the way SQLite :memory: did.
 
 function applicantPatch(overrides: Partial<Omit<Applicant, "id" | "education" | "workExperience" | "projects" | "certifications" | "documents">> = {}) {
   return {
@@ -425,10 +425,4 @@ describe("account deletion", () => {
     expect(await db.getApplicant(bystanderId)).not.toBeNull();
     expect(await db.listSavedListingIds(bystanderId)).toContain(bystanderListing.id);
   });
-});
-
-beforeAll(() => {
-  // Sanity check that this suite really is running against an isolated
-  // in-memory database, not the real dev data file.
-  expect(process.env.INTERNEZ_DB_PATH).toBe(":memory:");
 });
