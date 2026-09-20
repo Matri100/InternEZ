@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8" /><title>Mock application form</title>
+<style>body{font-family:sans-serif;max-width:480px;margin:40px auto;} label{display:block;margin-top:12px;font-size:13px;} input,textarea{width:100%;padding:6px;box-sizing:border-box;}</style>
+</head>
+<body>
+<h1>Acme Corp — Internship Application</h1>
+<form id="app-form">
+  <label for="f1">First Name</label>
+  <input id="f1" name="first_name" type="text" />
+
+  <label for="f2">Last Name</label>
+  <input id="f2" name="last_name" type="text" />
+
+  <label for="f3">Email Address</label>
+  <input id="f3" name="email" type="email" />
+
+  <label for="f4">Phone Number</label>
+  <input id="f4" name="phone" type="tel" />
+
+  <label for="f5">LinkedIn Profile</label>
+  <input id="f5" name="linkedin_url" type="text" />
+
+  <label for="f6">University / College</label>
+  <input id="f6" name="school" type="text" />
+
+  <label for="f7">Field of Study</label>
+  <input id="f7" name="major" type="text" />
+
+  <label for="f8">Current Employer (if any)</label>
+  <input id="f8" name="employer" type="text" />
+
+  <label for="f9">Cover Letter</label>
+  <textarea id="f9" name="cover_letter"></textarea>
+
+  <label for="f10">Username</label>
+  <input id="f10" name="username" type="text" />
+
+  <label for="f11">Referral Code (optional)</label>
+  <input id="f11" name="referral" type="text" />
+
+  <label for="f12">Desired Salary</label>
+  <input id="f12" name="salary" type="text" value="already filled by user" />
+
+  <label for="f14">Degree</label>
+  <select id="f14" name="degree">
+    <option value="">Select...</option>
+    <option value="opt_hs">High School Diploma</option>
+    <option value="opt_assoc">Associate's Degree</option>
+    <option value="opt_bach">Bachelor's Degree</option>
+    <option value="opt_mast">Master's Degree</option>
+  </select>
+
+  <label for="f15">Preferred Contact Method</label>
+  <select id="f15" name="contact_method">
+    <option value="">Select...</option>
+    <option value="email_opt">Email</option>
+    <option value="phone_opt">Phone</option>
+  </select>
+
+  <h2>Voluntary Self-Identification</h2>
+
+  <label for="f16">Gender Identity</label>
+  <select id="f16" name="gender_identity">
+    <option value="">Select...</option>
+    <option value="man_opt">Man</option>
+    <option value="woman_opt">Woman</option>
+    <option value="nonbinary_opt">Non-binary</option>
+    <option value="decline_opt">Prefer not to say</option>
+  </select>
+
+  <label for="f17">Veteran Status</label>
+  <select id="f17" name="veteran_status">
+    <option value="">Select...</option>
+    <option value="not_vet_opt">I am not a protected veteran</option>
+    <option value="is_vet_opt">I identify as a protected veteran</option>
+    <option value="decline_vet_opt">I don't wish to answer</option>
+  </select>
+
+  <button type="submit">Submit Application</button>
+</form>
+
+<script>
+  // Simulates a React-controlled input: value only ever changes via this
+  // listener re-rendering it from state, exactly like a real SPA form
+  // would. If setNativeValue's approach doesn't work, this field will
+  // stay blank even after content.js "fills" it.
+  const reactLike = document.createElement("div");
+  reactLike.innerHTML = '<label for="f13">Skills (React-controlled)</label><input id="f13" name="skills_controlled" type="text" />';
+  document.getElementById("app-form").insertBefore(reactLike, document.querySelector("button"));
+  let state = "";
+  const controlledInput = document.getElementById("f13");
+  controlledInput.addEventListener("input", (e) => {
+    state = e.target.value;
+    controlledInput.value = state; // re-render from "state", like React would
+    controlledInput.dataset.reactSawIt = "true";
+  });
+</script>
+</body>
+</html>

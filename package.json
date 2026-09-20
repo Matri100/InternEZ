@@ -1,0 +1,13 @@
+{
+  "name": "internez",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Convenience wrapper only — backend/ and frontend/ are separate npm projects with their own package.json and node_modules. This just runs both dev servers together.",
+  "scripts": {
+    "dev": "concurrently -n backend,frontend -c blue,magenta \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "install:all": "npm install --prefix backend && npm install --prefix frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

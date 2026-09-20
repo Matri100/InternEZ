@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Envoy — InternEZ",
+  "version": "0.1.0",
+  "description": "Envoy, your InternEZ assistant, fills known application-form fields from your profile. It only fills fields — you always review and submit yourself.",
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["http://localhost:4000/*"]
+}

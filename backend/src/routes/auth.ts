@@ -1,0 +1,112 @@
+import { Router } from "express";
+import { randomUUID } from "node:crypto";
+import { db } from "../models/store.js";
+import { hashPassword, verifyPassword } from "../services/passwords.js";
+import type { AuthUser, UserRole } from "../types/domain.js";
+
+export const authRouter = Router();
+
+function isValidRole(value: unknown): value is UserRole {
+  return value === "applicant" || value === "company";
+}
+
+authRouter.post("/signup", async (req, res) => {
+  const { email, password, role, name } = req.body ?? {};
+
+  if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    res.status(400).json({ error: "Enter a valid email address" });
+    return;
+  }
+  if (typeof password !== "string" || password.length < 8) {
+    res.status(400).json({ error: "Password must be at least 8 characters" });
+    return;
+  }
+  if (!isValidRole(role)) {
+    res.status(400).json({ error: "Choose whether you're an applicant or a company" });
+    return;
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const existing = await db.getUserByEmail(normalizedEmail);
+  if (existing) {
+    res.status(409).json({ error: "An account with this email already exists" });
+    return;
+  }
+
+  const id = randomUUID();
+  await db.createUser({ id, email: normalizedEmail, passwordHash: hashPassword(password), role });
+
+  if (role === "applicant") {
+    await db.saveApplicant(id, {
+      name: String(name ?? ""),
+      email: normalizedEmail,
+      phone: "",
+      portfolioUrl: "",
+      citizenship: null,
+      secondCitizenship: null,
+      placeOfBirth: null,
+      residence: null,
+      availableFrom: "",
+      preferredLength: null,
+      workArrangementPreference: [],
+      preferredLocations: [],
+      languages: [],
+      skills: [],
+      interests: [],
+      qualifications: [],
+      summary: "",
+      coverLetterPrompts: { whyThisField: "", provenStrength: "", workingStyle: "", careerGoals: "" },
+      profileComplete: false,
+      discoverable: false,
+    });
+  } else {
+    await db.saveCompany(id, {
+      name: String(name ?? ""),
+      verified: false,
+      logoUrl: null,
+      description: "",
+      website: "",
+      headquarters: null,
+      companySize: null,
+    });
+  }
+
+  req.session.userId = id;
+  req.session.role = role;
+  const user: AuthUser = { id, email: normalizedEmail, role };
+  res.status(201).json(user);
+});
+
+authRouter.post("/login", async (req, res) => {
+  const { email, password } = req.body ?? {};
+  const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
+  const stored = normalizedEmail ? await db.getUserByEmail(normalizedEmail) : null;
+
+  if (!stored || typeof password !== "string" || !verifyPassword(password, stored.passwordHash)) {
+    res.status(401).json({ error: "Incorrect email or password" });
+    return;
+  }
+
+  req.session.userId = stored.id;
+  req.session.role = stored.role;
+  const user: AuthUser = { id: stored.id, email: stored.email, role: stored.role };
+  res.json(user);
+});
+
+authRouter.post("/logout", (req, res) => {
+  req.session.destroy(() => res.status(204).send());
+});
+
+authRouter.get("/me", async (req, res) => {
+  if (!req.session.userId) {
+    res.json(null);
+    return;
+  }
+  const stored = await db.getUserById(req.session.userId);
+  if (!stored) {
+    res.json(null);
+    return;
+  }
+  const user: AuthUser = { id: stored.id, email: stored.email, role: stored.role };
+  res.json(user);
+});
