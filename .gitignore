@@ -4,14 +4,8 @@ dist/
 *.log
 *.tsbuildinfo
 
-# Local SQLite dev database (data, not code) — WAL/SHM are the write-ahead
-# log and shared-memory files better-sqlite3 creates alongside the main file.
-backend/data/*.sqlite
-backend/data/*.sqlite-wal
-backend/data/*.sqlite-shm
-
-# Secrets — none exist yet, but this repo will hold real ones once it's
-# deployed, so the pattern is in place before that day arrives.
+# Secrets — DATABASE_URL, SESSION_SECRET, etc. live in a local .env now that
+# the backend is Postgres-backed (see backend/.env.example for the template).
 .env
 .env.*
 !.env.example

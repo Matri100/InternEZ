@@ -3,7 +3,7 @@
 // (one applicant, one company) so the app is fully explorable immediately
 // after a fresh install, without anyone having to sign up first.
 import { randomUUID } from "node:crypto";
-import { sqlite } from "./database.js";
+import { pool } from "./database.js";
 import { db } from "../models/store.js";
 import { hashPassword } from "../services/passwords.js";
 import { companies, listings } from "../data/seed.js";
@@ -17,8 +17,8 @@ const DEMO_APPLICANT_ID = "demo_applicant";
 const DEMO_COMPANY_ID = "co_nordwind"; // owns the seeded Nordwind listings
 
 export async function seedIfEmpty(): Promise<void> {
-  const userCount = (sqlite.prepare(`SELECT COUNT(*) AS n FROM users`).get() as { n: number }).n;
-  if (userCount > 0) return;
+  const { rows } = await pool.query(`SELECT COUNT(*) AS n FROM users`);
+  if (Number(rows[0].n) > 0) return;
 
   for (const company of companies) {
     await db.saveCompany(company.id, {
@@ -32,45 +32,40 @@ export async function seedIfEmpty(): Promise<void> {
     });
   }
 
-  const insertListing = sqlite.prepare(
-    `INSERT INTO listings (
+  const insertListingSql = `INSERT INTO listings (
       id, company_id, created_at, title, location, country, origin, department, work_arrangement,
       required_education_level, duration, start_date, start_label, end_label, compensation,
       application_deadline, description, requirements, skills, target_fields, required_languages,
       industries, preferred_qualifications, eligibility, extra_questions
-    ) VALUES (@id, @companyId, @createdAt, @title, @location, @country, @origin, @department, @workArrangement,
-      @requiredEducationLevel, @duration, @startDate, @startLabel, @endLabel, @compensation,
-      @applicationDeadline, @description, @requirements, @skills, @targetFields, @requiredLanguages,
-      @industries, @preferredQualifications, @eligibility, @extraQuestions)`
-  );
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)`;
   for (const listing of listings) {
-    insertListing.run({
-      id: listing.id,
-      companyId: listing.companyId,
-      createdAt: listing.createdAt,
-      title: listing.title,
-      location: listing.location,
-      country: listing.country,
-      origin: listing.origin,
-      department: listing.department,
-      workArrangement: listing.workArrangement,
-      requiredEducationLevel: listing.requiredEducationLevel,
-      duration: listing.duration,
-      startDate: listing.startDate,
-      startLabel: listing.startLabel,
-      endLabel: listing.endLabel,
-      compensation: listing.compensation,
-      applicationDeadline: listing.applicationDeadline,
-      description: listing.description,
-      requirements: JSON.stringify(listing.requirements),
-      skills: JSON.stringify(listing.skills),
-      targetFields: JSON.stringify(listing.targetFields),
-      requiredLanguages: JSON.stringify(listing.requiredLanguages),
-      industries: JSON.stringify(listing.industries),
-      preferredQualifications: JSON.stringify(listing.preferredQualifications),
-      eligibility: JSON.stringify(listing.eligibility),
-      extraQuestions: JSON.stringify(listing.extraQuestions),
-    });
+    await pool.query(insertListingSql, [
+      listing.id,
+      listing.companyId,
+      listing.createdAt,
+      listing.title,
+      listing.location,
+      listing.country,
+      listing.origin,
+      listing.department,
+      listing.workArrangement,
+      listing.requiredEducationLevel,
+      listing.duration,
+      listing.startDate,
+      listing.startLabel,
+      listing.endLabel,
+      listing.compensation,
+      listing.applicationDeadline,
+      listing.description,
+      JSON.stringify(listing.requirements),
+      JSON.stringify(listing.skills),
+      JSON.stringify(listing.targetFields),
+      JSON.stringify(listing.requiredLanguages),
+      JSON.stringify(listing.industries),
+      JSON.stringify(listing.preferredQualifications),
+      JSON.stringify(listing.eligibility),
+      JSON.stringify(listing.extraQuestions),
+    ]);
   }
 
   // --- demo company account, reusing Nordwind's id so it owns real listings ---

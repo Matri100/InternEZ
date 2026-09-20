@@ -1,26 +1,54 @@
-// SQLite is the persistence layer: a single file on disk, no service to run
-// or pay for. Nested/array-shaped fields (education, skills, extra
-// questions, etc.) are stored as JSON text columns rather than fully
-// normalized — this keeps the schema a close mirror of the domain types
-// in types/domain.ts, and JSON columns map just as directly onto Postgres
-// JSONB if this ever needs to move there.
-import Database from "better-sqlite3";
-import { existsSync, mkdirSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+// Postgres is the persistence layer. Nested/array-shaped fields (education,
+// skills, extra questions, etc.) stay JSON text columns rather than fully
+// normalized — this keeps the schema a close mirror of the domain types in
+// types/domain.ts. They could become native JSONB with zero data-shape
+// change if that's ever worth it; TEXT + JSON.stringify/parse (see
+// store.ts) works identically either way, so there's no urgency.
+import pg from "pg";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const dataDir = join(__dirname, "..", "..", "data");
-if (!existsSync(dataDir)) mkdirSync(dataDir, { recursive: true });
+const { Pool } = pg;
 
-// Overridable so tests can point at an isolated in-memory database instead
-// of the real dev data file (set before this module is first imported).
-const dbPath = process.env.INTERNEZ_DB_PATH ?? join(dataDir, "internez.sqlite");
-export const sqlite = new Database(dbPath);
-sqlite.pragma("journal_mode = WAL");
-sqlite.pragma("foreign_keys = ON");
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  throw new Error(
+    "DATABASE_URL is required (e.g. postgres://user:pass@host:5432/dbname). See .env.example."
+  );
+}
 
-sqlite.exec(`
+// Hosted Postgres (Neon, Railway, Render, Supabase, ...) requires TLS but
+// typically presents a cert not in Node's default trust store — the normal,
+// accepted way to connect without managing a custom CA is to skip strict
+// cert validation while still encrypting the connection. Local/CI Postgres
+// (e.g. a GitHub Actions service container) has no TLS configured at all,
+// so DATABASE_SSL=disable turns this off entirely for those.
+const useSsl = process.env.DATABASE_SSL !== "disable";
+
+export const pool = new Pool({
+  connectionString,
+  ssl: useSsl ? { rejectUnauthorized: false } : undefined,
+});
+
+// Runs `fn` inside a single transaction on one dedicated client, so a
+// mid-cascade failure (e.g. account deletion) can't leave the database
+// half-changed. Only needed where multiple statements must succeed or fail
+// together — every other store.ts method is a single statement and just
+// uses the shared pool directly.
+export async function withTransaction<T>(fn: (client: pg.PoolClient) => Promise<T>): Promise<T> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await fn(client);
+    await client.query("COMMIT");
+    return result;
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+await pool.query(`
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     email TEXT NOT NULL UNIQUE,
@@ -173,10 +201,14 @@ sqlite.exec(`
 
   -- express-session storage, so logins survive a server restart instead of
   -- resetting along with everything else an in-memory store would lose.
+  -- expires_at is a millisecond epoch timestamp (Date.now() + maxAge) — it
+  -- needs BIGINT, not INTEGER: Postgres's INTEGER is a strict 4-byte type
+  -- (max ~2.1 billion) that a 13-digit millisecond timestamp overflows,
+  -- unlike SQLite's untyped INTEGER affinity, which never enforced a width.
   CREATE TABLE IF NOT EXISTS sessions (
     sid TEXT PRIMARY KEY,
     data TEXT NOT NULL,
-    expires_at INTEGER NOT NULL
+    expires_at BIGINT NOT NULL
   );
 
   -- One thread per (applicant, company) pair. A "poke" is just a
@@ -241,21 +273,3 @@ sqlite.exec(`
   CREATE INDEX IF NOT EXISTS idx_saved_searches_applicant ON saved_searches(applicant_id);
   CREATE INDEX IF NOT EXISTS idx_extension_tokens_applicant ON extension_tokens(applicant_id);
 `);
-
-// CREATE TABLE IF NOT EXISTS only applies to brand-new tables, so a column
-// added after a database file already exists needs its own migration step.
-const applicationColumns = sqlite.prepare(`PRAGMA table_info(applications)`).all() as { name: string }[];
-if (!applicationColumns.some((c) => c.name === "status")) {
-  sqlite.exec(`ALTER TABLE applications ADD COLUMN status TEXT NOT NULL DEFAULT 'applied'`);
-}
-
-const applicantColumns = sqlite.prepare(`PRAGMA table_info(applicants)`).all() as { name: string }[];
-if (!applicantColumns.some((c) => c.name === "discoverable")) {
-  sqlite.exec(`ALTER TABLE applicants ADD COLUMN discoverable INTEGER NOT NULL DEFAULT 0`);
-}
-if (!applicantColumns.some((c) => c.name === "second_citizenship")) {
-  sqlite.exec(`ALTER TABLE applicants ADD COLUMN second_citizenship TEXT`);
-}
-if (!applicantColumns.some((c) => c.name === "cover_letter_prompts")) {
-  sqlite.exec(`ALTER TABLE applicants ADD COLUMN cover_letter_prompts TEXT NOT NULL DEFAULT '{}'`);
-}

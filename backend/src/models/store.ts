@@ -1,9 +1,9 @@
-// SQLite-backed data access layer (see db/database.ts). Every method stays
-// async even though better-sqlite3 itself is synchronous — callers already
-// await everything and never touch the storage shape directly, so swapping
-// in a real async driver (Postgres, etc.) later is still a drop-in change.
+// Postgres-backed data access layer (see db/database.ts). Every method was
+// already async before this was Postgres — callers already await
+// everything and never touch the storage shape directly, so the earlier
+// SQLite→Postgres swap only ever needed to touch this file and database.ts.
 import { randomUUID } from "node:crypto";
-import { sqlite } from "../db/database.js";
+import { pool, withTransaction } from "../db/database.js";
 import type {
   Applicant,
   Application,
@@ -206,88 +206,90 @@ export const db = {
 
   async createUser(input: { id: string; email: string; passwordHash: string; role: UserRole }): Promise<StoredUser> {
     const createdAt = new Date().toISOString();
-    sqlite
-      .prepare(`INSERT INTO users (id, email, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)`)
-      .run(input.id, input.email, input.passwordHash, input.role, createdAt);
+    await pool.query(`INSERT INTO users (id, email, password_hash, role, created_at) VALUES ($1, $2, $3, $4, $5)`, [
+      input.id,
+      input.email,
+      input.passwordHash,
+      input.role,
+      createdAt,
+    ]);
     return { ...input, createdAt };
   },
 
   async getUserByEmail(email: string): Promise<StoredUser | null> {
-    const row = sqlite.prepare(`SELECT * FROM users WHERE email = ?`).get(email) as UserRow | undefined;
-    return row ? userFromRow(row) : null;
+    const { rows } = await pool.query(`SELECT * FROM users WHERE email = $1`, [email]);
+    return rows[0] ? userFromRow(rows[0]) : null;
   },
 
   async getUserById(id: string): Promise<StoredUser | null> {
-    const row = sqlite.prepare(`SELECT * FROM users WHERE id = ?`).get(id) as UserRow | undefined;
-    return row ? userFromRow(row) : null;
+    const { rows } = await pool.query(`SELECT * FROM users WHERE id = $1`, [id]);
+    return rows[0] ? userFromRow(rows[0]) : null;
   },
 
   // --- applicants ---
 
   async getApplicant(id: string): Promise<Applicant | null> {
-    const row = sqlite.prepare(`SELECT * FROM applicants WHERE id = ?`).get(id);
-    return row ? applicantFromRow(row) : null;
+    const { rows } = await pool.query(`SELECT * FROM applicants WHERE id = $1`, [id]);
+    return rows[0] ? applicantFromRow(rows[0]) : null;
   },
 
   async saveApplicant(
     id: string,
     patch: Omit<Applicant, "id" | "education" | "workExperience" | "projects" | "certifications" | "documents">
   ): Promise<Applicant> {
-    sqlite
-      .prepare(
-        `INSERT INTO applicants (
-          id, name, email, phone, portfolio_url, citizenship, second_citizenship, place_of_birth, residence,
-          available_from, preferred_length, work_arrangement_preference, preferred_locations,
-          languages, skills, interests, qualifications, summary, cover_letter_prompts, profile_complete, discoverable
-        ) VALUES (@id, @name, @email, @phone, @portfolioUrl, @citizenship, @secondCitizenship, @placeOfBirth, @residence,
-          @availableFrom, @preferredLength, @workArrangementPreference, @preferredLocations,
-          @languages, @skills, @interests, @qualifications, @summary, @coverLetterPrompts, @profileComplete, @discoverable)
-        ON CONFLICT(id) DO UPDATE SET
-          name = excluded.name, email = excluded.email, phone = excluded.phone,
-          portfolio_url = excluded.portfolio_url, citizenship = excluded.citizenship,
-          second_citizenship = excluded.second_citizenship,
-          place_of_birth = excluded.place_of_birth, residence = excluded.residence,
-          available_from = excluded.available_from, preferred_length = excluded.preferred_length,
-          work_arrangement_preference = excluded.work_arrangement_preference,
-          preferred_locations = excluded.preferred_locations, languages = excluded.languages,
-          skills = excluded.skills, interests = excluded.interests,
-          qualifications = excluded.qualifications, summary = excluded.summary,
-          cover_letter_prompts = excluded.cover_letter_prompts,
-          profile_complete = excluded.profile_complete, discoverable = excluded.discoverable`
-      )
-      .run({
+    await pool.query(
+      `INSERT INTO applicants (
+        id, name, email, phone, portfolio_url, citizenship, second_citizenship, place_of_birth, residence,
+        available_from, preferred_length, work_arrangement_preference, preferred_locations,
+        languages, skills, interests, qualifications, summary, cover_letter_prompts, profile_complete, discoverable
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+      ON CONFLICT (id) DO UPDATE SET
+        name = excluded.name, email = excluded.email, phone = excluded.phone,
+        portfolio_url = excluded.portfolio_url, citizenship = excluded.citizenship,
+        second_citizenship = excluded.second_citizenship,
+        place_of_birth = excluded.place_of_birth, residence = excluded.residence,
+        available_from = excluded.available_from, preferred_length = excluded.preferred_length,
+        work_arrangement_preference = excluded.work_arrangement_preference,
+        preferred_locations = excluded.preferred_locations, languages = excluded.languages,
+        skills = excluded.skills, interests = excluded.interests,
+        qualifications = excluded.qualifications, summary = excluded.summary,
+        cover_letter_prompts = excluded.cover_letter_prompts,
+        profile_complete = excluded.profile_complete, discoverable = excluded.discoverable`,
+      [
         id,
-        name: patch.name,
-        email: patch.email,
-        phone: patch.phone,
-        portfolioUrl: patch.portfolioUrl,
-        citizenship: patch.citizenship,
-        secondCitizenship: patch.secondCitizenship,
-        placeOfBirth: patch.placeOfBirth,
-        residence: patch.residence,
-        availableFrom: patch.availableFrom,
-        preferredLength: patch.preferredLength,
-        workArrangementPreference: JSON.stringify(patch.workArrangementPreference),
-        preferredLocations: JSON.stringify(patch.preferredLocations),
-        languages: JSON.stringify(patch.languages),
-        skills: JSON.stringify(patch.skills),
-        interests: JSON.stringify(patch.interests),
-        qualifications: JSON.stringify(patch.qualifications),
-        summary: patch.summary,
-        coverLetterPrompts: JSON.stringify(patch.coverLetterPrompts),
-        profileComplete: patch.profileComplete ? 1 : 0,
-        discoverable: patch.discoverable ? 1 : 0,
-      });
+        patch.name,
+        patch.email,
+        patch.phone,
+        patch.portfolioUrl,
+        patch.citizenship,
+        patch.secondCitizenship,
+        patch.placeOfBirth,
+        patch.residence,
+        patch.availableFrom,
+        patch.preferredLength,
+        JSON.stringify(patch.workArrangementPreference),
+        JSON.stringify(patch.preferredLocations),
+        JSON.stringify(patch.languages),
+        JSON.stringify(patch.skills),
+        JSON.stringify(patch.interests),
+        JSON.stringify(patch.qualifications),
+        patch.summary,
+        JSON.stringify(patch.coverLetterPrompts),
+        patch.profileComplete ? 1 : 0,
+        patch.discoverable ? 1 : 0,
+      ]
+    );
     return (await db.getApplicant(id))!;
   },
 
   async listDiscoverableApplicants(): Promise<Applicant[]> {
-    return (sqlite.prepare(`SELECT * FROM applicants WHERE discoverable = 1`).all() as any[]).map(applicantFromRow);
+    const { rows } = await pool.query(`SELECT * FROM applicants WHERE discoverable = 1`);
+    return rows.map(applicantFromRow);
   },
 
   async setEducation(applicantId: string, entries: Omit<EducationEntry, "id" | "applicantId">[]): Promise<EducationEntry[]> {
     const withIds: EducationEntry[] = entries.map((e) => ({ ...e, id: randomUUID(), applicantId }));
-    sqlite.prepare(`UPDATE applicants SET education = ? WHERE id = ?`).run(JSON.stringify(withIds), applicantId);
+    await pool.query(`UPDATE applicants SET education = $1 WHERE id = $2`, [JSON.stringify(withIds), applicantId]);
     return withIds;
   },
 
@@ -296,13 +298,13 @@ export const db = {
     entries: Omit<WorkExperienceEntry, "id" | "applicantId">[]
   ): Promise<WorkExperienceEntry[]> {
     const withIds: WorkExperienceEntry[] = entries.map((e) => ({ ...e, id: randomUUID(), applicantId }));
-    sqlite.prepare(`UPDATE applicants SET work_experience = ? WHERE id = ?`).run(JSON.stringify(withIds), applicantId);
+    await pool.query(`UPDATE applicants SET work_experience = $1 WHERE id = $2`, [JSON.stringify(withIds), applicantId]);
     return withIds;
   },
 
   async setProjects(applicantId: string, entries: Omit<ProjectEntry, "id" | "applicantId">[]): Promise<ProjectEntry[]> {
     const withIds: ProjectEntry[] = entries.map((e) => ({ ...e, id: randomUUID(), applicantId }));
-    sqlite.prepare(`UPDATE applicants SET projects = ? WHERE id = ?`).run(JSON.stringify(withIds), applicantId);
+    await pool.query(`UPDATE applicants SET projects = $1 WHERE id = $2`, [JSON.stringify(withIds), applicantId]);
     return withIds;
   },
 
@@ -311,49 +313,45 @@ export const db = {
     entries: Omit<CertificationEntry, "id" | "applicantId">[]
   ): Promise<CertificationEntry[]> {
     const withIds: CertificationEntry[] = entries.map((e) => ({ ...e, id: randomUUID(), applicantId }));
-    sqlite.prepare(`UPDATE applicants SET certifications = ? WHERE id = ?`).run(JSON.stringify(withIds), applicantId);
+    await pool.query(`UPDATE applicants SET certifications = $1 WHERE id = $2`, [JSON.stringify(withIds), applicantId]);
     return withIds;
   },
 
   async setDocuments(applicantId: string, entries: Omit<DocumentFile, "id" | "applicantId">[]): Promise<DocumentFile[]> {
     const withIds: DocumentFile[] = entries.map((e) => ({ ...e, id: randomUUID(), applicantId }));
-    sqlite.prepare(`UPDATE applicants SET documents = ? WHERE id = ?`).run(JSON.stringify(withIds), applicantId);
+    await pool.query(`UPDATE applicants SET documents = $1 WHERE id = $2`, [JSON.stringify(withIds), applicantId]);
     return withIds;
   },
 
   // --- listings ---
 
   async listListings(): Promise<Listing[]> {
-    return (sqlite.prepare(`SELECT * FROM listings`).all() as any[]).map(listingFromRow);
+    const { rows } = await pool.query(`SELECT * FROM listings`);
+    return rows.map(listingFromRow);
   },
 
   async getListing(id: string): Promise<Listing | null> {
-    const row = sqlite.prepare(`SELECT * FROM listings WHERE id = ?`).get(id);
-    return row ? listingFromRow(row) : null;
+    const { rows } = await pool.query(`SELECT * FROM listings WHERE id = $1`, [id]);
+    return rows[0] ? listingFromRow(rows[0]) : null;
   },
 
   async listListingsByCompany(companyId: string): Promise<Listing[]> {
-    return (
-      sqlite.prepare(`SELECT * FROM listings WHERE company_id = ? ORDER BY id DESC`).all(companyId) as any[]
-    ).map(listingFromRow);
+    const { rows } = await pool.query(`SELECT * FROM listings WHERE company_id = $1 ORDER BY id DESC`, [companyId]);
+    return rows.map(listingFromRow);
   },
 
   async createListing(companyId: string, input: Omit<Listing, "id" | "companyId" | "createdAt">): Promise<Listing> {
     const id = randomUUID();
     const createdAt = new Date().toISOString();
-    sqlite
-      .prepare(
-        `INSERT INTO listings (
-          id, company_id, created_at, title, location, country, origin, department, work_arrangement,
-          required_education_level, duration, start_date, start_label, end_label, compensation,
-          application_deadline, description, requirements, skills, target_fields, required_languages,
-          industries, preferred_qualifications, eligibility, extra_questions
-        ) VALUES (@id, @companyId, @createdAt, @title, @location, @country, @origin, @department, @workArrangement,
-          @requiredEducationLevel, @duration, @startDate, @startLabel, @endLabel, @compensation,
-          @applicationDeadline, @description, @requirements, @skills, @targetFields, @requiredLanguages,
-          @industries, @preferredQualifications, @eligibility, @extraQuestions)`
-      )
-      .run(listingParams(id, companyId, createdAt, input));
+    await pool.query(
+      `INSERT INTO listings (
+        id, company_id, created_at, title, location, country, origin, department, work_arrangement,
+        required_education_level, duration, start_date, start_label, end_label, compensation,
+        application_deadline, description, requirements, skills, target_fields, required_languages,
+        industries, preferred_qualifications, eligibility, extra_questions
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)`,
+      listingParams(id, companyId, createdAt, input)
+    );
     return (await db.getListing(id))!;
   },
 
@@ -364,68 +362,65 @@ export const db = {
   ): Promise<Listing | null> {
     const existing = await db.getListing(id);
     if (!existing || existing.companyId !== companyId) return null;
-    sqlite
-      .prepare(
-        `UPDATE listings SET
-          title=@title, location=@location, country=@country, origin=@origin, department=@department,
-          work_arrangement=@workArrangement, required_education_level=@requiredEducationLevel, duration=@duration,
-          start_date=@startDate, start_label=@startLabel, end_label=@endLabel, compensation=@compensation,
-          application_deadline=@applicationDeadline, description=@description, requirements=@requirements,
-          skills=@skills, target_fields=@targetFields, required_languages=@requiredLanguages,
-          industries=@industries, preferred_qualifications=@preferredQualifications, eligibility=@eligibility,
-          extra_questions=@extraQuestions
-        WHERE id=@id`
-      )
-      .run(listingParams(id, companyId, existing.createdAt, patch));
+    await pool.query(
+      `UPDATE listings SET
+        title=$4, location=$5, country=$6, origin=$7, department=$8,
+        work_arrangement=$9, required_education_level=$10, duration=$11,
+        start_date=$12, start_label=$13, end_label=$14, compensation=$15,
+        application_deadline=$16, description=$17, requirements=$18,
+        skills=$19, target_fields=$20, required_languages=$21,
+        industries=$22, preferred_qualifications=$23, eligibility=$24,
+        extra_questions=$25
+      WHERE id=$1`,
+      listingParams(id, companyId, existing.createdAt, patch)
+    );
     return await db.getListing(id);
   },
 
   async deleteListing(id: string, companyId: string): Promise<boolean> {
-    const result = sqlite.prepare(`DELETE FROM listings WHERE id = ? AND company_id = ?`).run(id, companyId);
-    return result.changes > 0;
+    const result = await pool.query(`DELETE FROM listings WHERE id = $1 AND company_id = $2`, [id, companyId]);
+    return (result.rowCount ?? 0) > 0;
   },
 
   // --- companies ---
 
   async getCompany(id: string): Promise<Company | null> {
-    const row = sqlite.prepare(`SELECT * FROM companies WHERE id = ?`).get(id);
-    return row ? companyFromRow(row) : null;
+    const { rows } = await pool.query(`SELECT * FROM companies WHERE id = $1`, [id]);
+    return rows[0] ? companyFromRow(rows[0]) : null;
   },
 
   async saveCompany(id: string, patch: Omit<Company, "id">): Promise<Company> {
-    sqlite
-      .prepare(
-        `INSERT INTO companies (id, name, verified, logo_url, description, website, headquarters, company_size)
-         VALUES (@id, @name, @verified, @logoUrl, @description, @website, @headquarters, @companySize)
-         ON CONFLICT(id) DO UPDATE SET
-           name=excluded.name, verified=excluded.verified, logo_url=excluded.logo_url,
-           description=excluded.description, website=excluded.website, headquarters=excluded.headquarters,
-           company_size=excluded.company_size`
-      )
-      .run({
+    await pool.query(
+      `INSERT INTO companies (id, name, verified, logo_url, description, website, headquarters, company_size)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (id) DO UPDATE SET
+         name=excluded.name, verified=excluded.verified, logo_url=excluded.logo_url,
+         description=excluded.description, website=excluded.website, headquarters=excluded.headquarters,
+         company_size=excluded.company_size`,
+      [
         id,
-        name: patch.name,
-        verified: patch.verified ? 1 : 0,
-        logoUrl: patch.logoUrl,
-        description: patch.description,
-        website: patch.website,
-        headquarters: patch.headquarters,
-        companySize: patch.companySize,
-      });
+        patch.name,
+        patch.verified ? 1 : 0,
+        patch.logoUrl,
+        patch.description,
+        patch.website,
+        patch.headquarters,
+        patch.companySize,
+      ]
+    );
     return (await db.getCompany(id))!;
   },
 
   // --- applications ---
 
   async listApplicationsForCompany(companyId: string): Promise<Application[]> {
-    const rows = sqlite
-      .prepare(
-        `SELECT a.* FROM applications a
-         JOIN listings l ON l.id = a.listing_id
-         WHERE l.company_id = ?
-         ORDER BY a.submitted_at DESC`
-      )
-      .all(companyId) as any[];
+    const { rows } = await pool.query(
+      `SELECT a.* FROM applications a
+       JOIN listings l ON l.id = a.listing_id
+       WHERE l.company_id = $1
+       ORDER BY a.submitted_at DESC`,
+      [companyId]
+    );
     return rows.map(applicationFromRow);
   },
 
@@ -440,52 +435,52 @@ export const db = {
     // application is a decision only the applicant can make or reverse, so
     // it's excluded from what this query even finds, not just filtered in
     // the UI.
-    const owns = sqlite
-      .prepare(
-        `SELECT 1 FROM applications a
-         JOIN listings l ON l.id = a.listing_id
-         WHERE a.id = ? AND l.company_id = ? AND a.status != 'withdrawn'`
-      )
-      .get(applicationId, companyId);
-    if (!owns) return null;
+    const { rows: owns } = await pool.query(
+      `SELECT 1 FROM applications a
+       JOIN listings l ON l.id = a.listing_id
+       WHERE a.id = $1 AND l.company_id = $2 AND a.status != 'withdrawn'`,
+      [applicationId, companyId]
+    );
+    if (owns.length === 0) return null;
 
-    sqlite.prepare(`UPDATE applications SET status = ? WHERE id = ?`).run(status, applicationId);
-    const row = sqlite.prepare(`SELECT * FROM applications WHERE id = ?`).get(applicationId);
-    return row ? applicationFromRow(row) : null;
+    await pool.query(`UPDATE applications SET status = $1 WHERE id = $2`, [status, applicationId]);
+    const { rows } = await pool.query(`SELECT * FROM applications WHERE id = $1`, [applicationId]);
+    return rows[0] ? applicationFromRow(rows[0]) : null;
   },
 
   async withdrawApplication(applicationId: string, applicantId: string): Promise<Application | null> {
-    const result = sqlite
-      .prepare(`UPDATE applications SET status = 'withdrawn' WHERE id = ? AND applicant_id = ?`)
-      .run(applicationId, applicantId);
-    if (result.changes === 0) return null;
-    const row = sqlite.prepare(`SELECT * FROM applications WHERE id = ?`).get(applicationId);
-    return row ? applicationFromRow(row) : null;
+    const result = await pool.query(
+      `UPDATE applications SET status = 'withdrawn' WHERE id = $1 AND applicant_id = $2`,
+      [applicationId, applicantId]
+    );
+    if ((result.rowCount ?? 0) === 0) return null;
+    const { rows } = await pool.query(`SELECT * FROM applications WHERE id = $1`, [applicationId]);
+    return rows[0] ? applicationFromRow(rows[0]) : null;
   },
 
   async listApplications(applicantId: string): Promise<Application[]> {
-    const rows = sqlite
-      .prepare(`SELECT * FROM applications WHERE applicant_id = ? ORDER BY submitted_at DESC`)
-      .all(applicantId) as any[];
+    const { rows } = await pool.query(`SELECT * FROM applications WHERE applicant_id = $1 ORDER BY submitted_at DESC`, [
+      applicantId,
+    ]);
     return rows.map(applicationFromRow);
   },
 
   async hasApplied(applicantId: string, listingId: string): Promise<boolean> {
-    const row = sqlite
-      .prepare(`SELECT 1 FROM applications WHERE applicant_id = ? AND listing_id = ?`)
-      .get(applicantId, listingId);
-    return Boolean(row);
+    const { rows } = await pool.query(`SELECT 1 FROM applications WHERE applicant_id = $1 AND listing_id = $2`, [
+      applicantId,
+      listingId,
+    ]);
+    return rows.length > 0;
   },
 
   async hasApplicantAppliedToCompany(applicantId: string, companyId: string): Promise<boolean> {
-    const row = sqlite
-      .prepare(
-        `SELECT 1 FROM applications a
-         JOIN listings l ON l.id = a.listing_id
-         WHERE a.applicant_id = ? AND l.company_id = ?`
-      )
-      .get(applicantId, companyId);
-    return Boolean(row);
+    const { rows } = await pool.query(
+      `SELECT 1 FROM applications a
+       JOIN listings l ON l.id = a.listing_id
+       WHERE a.applicant_id = $1 AND l.company_id = $2`,
+      [applicantId, companyId]
+    );
+    return rows.length > 0;
   },
 
   async createApplication(input: {
@@ -521,45 +516,47 @@ export const db = {
       status: listing?.origin === "direct" ? "applied" : "appliedExternally",
     };
 
-    sqlite
-      .prepare(
-        `INSERT INTO applications (id, applicant_id, listing_id, submitted_at, overridden, extra_answers, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`
-      )
-      .run(
+    await pool.query(
+      `INSERT INTO applications (id, applicant_id, listing_id, submitted_at, overridden, extra_answers, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
         application.id,
         application.applicantId,
         application.listingId,
         application.submittedAt,
         application.overridden ? 1 : 0,
         JSON.stringify(application.extraAnswers),
-        application.status
-      );
+        application.status,
+      ]
+    );
 
     if (extraAnswers.length > 0) {
-      const upsert = sqlite.prepare(
-        `INSERT INTO reuse_answers (applicant_id, key, answer) VALUES (?, ?, ?)
-         ON CONFLICT(applicant_id, key) DO UPDATE SET answer = excluded.answer`
-      );
-      for (const a of extraAnswers) upsert.run(input.applicantId, a.key, a.answer);
+      for (const a of extraAnswers) {
+        await pool.query(
+          `INSERT INTO reuse_answers (applicant_id, key, answer) VALUES ($1, $2, $3)
+           ON CONFLICT (applicant_id, key) DO UPDATE SET answer = excluded.answer`,
+          [input.applicantId, a.key, a.answer]
+        );
+      }
     }
 
     return application;
   },
 
   async getReusedAnswer(applicantId: string, key: string): Promise<string | null> {
-    const row = sqlite
-      .prepare(`SELECT answer FROM reuse_answers WHERE applicant_id = ? AND key = ?`)
-      .get(applicantId, key) as { answer: string } | undefined;
-    return row?.answer ?? null;
+    const { rows } = await pool.query(`SELECT answer FROM reuse_answers WHERE applicant_id = $1 AND key = $2`, [
+      applicantId,
+      key,
+    ]);
+    return rows[0]?.answer ?? null;
   },
 
   async getReusedAnswers(applicantId: string, keys: string[]): Promise<Record<string, string>> {
     if (keys.length === 0) return {};
-    const placeholders = keys.map(() => "?").join(",");
-    const rows = sqlite
-      .prepare(`SELECT key, answer FROM reuse_answers WHERE applicant_id = ? AND key IN (${placeholders})`)
-      .all(applicantId, ...keys) as { key: string; answer: string }[];
+    const { rows } = await pool.query(
+      `SELECT key, answer FROM reuse_answers WHERE applicant_id = $1 AND key = ANY($2::text[])`,
+      [applicantId, keys]
+    );
     const result: Record<string, string> = {};
     for (const row of rows) result[row.key] = row.answer;
     return result;
@@ -572,27 +569,27 @@ export const db = {
 
   async createExtensionToken(applicantId: string): Promise<string> {
     const token = randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");
-    sqlite.prepare(`DELETE FROM extension_tokens WHERE applicant_id = ?`).run(applicantId);
-    sqlite
-      .prepare(`INSERT INTO extension_tokens (token, applicant_id, created_at) VALUES (?, ?, ?)`)
-      .run(token, applicantId, new Date().toISOString());
+    await pool.query(`DELETE FROM extension_tokens WHERE applicant_id = $1`, [applicantId]);
+    await pool.query(`INSERT INTO extension_tokens (token, applicant_id, created_at) VALUES ($1, $2, $3)`, [
+      token,
+      applicantId,
+      new Date().toISOString(),
+    ]);
     return token;
   },
 
   async getApplicantIdByExtensionToken(token: string): Promise<string | null> {
-    const row = sqlite.prepare(`SELECT applicant_id FROM extension_tokens WHERE token = ?`).get(token) as
-      | { applicant_id: string }
-      | undefined;
-    return row?.applicant_id ?? null;
+    const { rows } = await pool.query(`SELECT applicant_id FROM extension_tokens WHERE token = $1`, [token]);
+    return rows[0]?.applicant_id ?? null;
   },
 
   async hasExtensionToken(applicantId: string): Promise<boolean> {
-    const row = sqlite.prepare(`SELECT 1 FROM extension_tokens WHERE applicant_id = ?`).get(applicantId);
-    return Boolean(row);
+    const { rows } = await pool.query(`SELECT 1 FROM extension_tokens WHERE applicant_id = $1`, [applicantId]);
+    return rows.length > 0;
   },
 
   async revokeExtensionToken(applicantId: string): Promise<void> {
-    sqlite.prepare(`DELETE FROM extension_tokens WHERE applicant_id = ?`).run(applicantId);
+    await pool.query(`DELETE FROM extension_tokens WHERE applicant_id = $1`, [applicantId]);
   },
 
   // --- voluntary self-identification (GDPR-sensitive, opt-in) ---
@@ -601,7 +598,8 @@ export const db = {
   // so callers don't need a separate null check before reading fields.
 
   async getVoluntaryDisclosures(applicantId: string): Promise<VoluntaryDisclosures> {
-    const row = sqlite.prepare(`SELECT * FROM voluntary_disclosures WHERE applicant_id = ?`).get(applicantId) as
+    const { rows } = await pool.query(`SELECT * FROM voluntary_disclosures WHERE applicant_id = $1`, [applicantId]);
+    const row = rows[0] as
       | {
           gender_identity: string;
           race_ethnicity: string;
@@ -623,77 +621,78 @@ export const db = {
   },
 
   async saveVoluntaryDisclosures(applicantId: string, patch: VoluntaryDisclosures): Promise<VoluntaryDisclosures> {
-    sqlite
-      .prepare(
-        `INSERT INTO voluntary_disclosures
-          (applicant_id, gender_identity, race_ethnicity, veteran_status, disability_status, consent_autofill, updated_at)
-         VALUES (@applicantId, @genderIdentity, @raceEthnicity, @veteranStatus, @disabilityStatus, @consentToAutofill, @updatedAt)
-         ON CONFLICT(applicant_id) DO UPDATE SET
-           gender_identity = excluded.gender_identity,
-           race_ethnicity = excluded.race_ethnicity,
-           veteran_status = excluded.veteran_status,
-           disability_status = excluded.disability_status,
-           consent_autofill = excluded.consent_autofill,
-           updated_at = excluded.updated_at`
-      )
-      .run({
+    await pool.query(
+      `INSERT INTO voluntary_disclosures
+        (applicant_id, gender_identity, race_ethnicity, veteran_status, disability_status, consent_autofill, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (applicant_id) DO UPDATE SET
+         gender_identity = excluded.gender_identity,
+         race_ethnicity = excluded.race_ethnicity,
+         veteran_status = excluded.veteran_status,
+         disability_status = excluded.disability_status,
+         consent_autofill = excluded.consent_autofill,
+         updated_at = excluded.updated_at`,
+      [
         applicantId,
-        genderIdentity: patch.genderIdentity,
-        raceEthnicity: patch.raceEthnicity,
-        veteranStatus: patch.veteranStatus,
-        disabilityStatus: patch.disabilityStatus,
-        consentToAutofill: patch.consentToAutofill ? 1 : 0,
-        updatedAt: new Date().toISOString(),
-      });
+        patch.genderIdentity,
+        patch.raceEthnicity,
+        patch.veteranStatus,
+        patch.disabilityStatus,
+        patch.consentToAutofill ? 1 : 0,
+        new Date().toISOString(),
+      ]
+    );
     return db.getVoluntaryDisclosures(applicantId);
   },
 
   // --- saved listings ---
 
   async saveListing(applicantId: string, listingId: string): Promise<void> {
-    sqlite
-      .prepare(`INSERT OR IGNORE INTO saved_listings (applicant_id, listing_id) VALUES (?, ?)`)
-      .run(applicantId, listingId);
+    await pool.query(
+      `INSERT INTO saved_listings (applicant_id, listing_id) VALUES ($1, $2) ON CONFLICT (applicant_id, listing_id) DO NOTHING`,
+      [applicantId, listingId]
+    );
   },
 
   async unsaveListing(applicantId: string, listingId: string): Promise<void> {
-    sqlite.prepare(`DELETE FROM saved_listings WHERE applicant_id = ? AND listing_id = ?`).run(applicantId, listingId);
+    await pool.query(`DELETE FROM saved_listings WHERE applicant_id = $1 AND listing_id = $2`, [applicantId, listingId]);
   },
 
   async isListingSaved(applicantId: string, listingId: string): Promise<boolean> {
-    const row = sqlite
-      .prepare(`SELECT 1 FROM saved_listings WHERE applicant_id = ? AND listing_id = ?`)
-      .get(applicantId, listingId);
-    return Boolean(row);
+    const { rows } = await pool.query(`SELECT 1 FROM saved_listings WHERE applicant_id = $1 AND listing_id = $2`, [
+      applicantId,
+      listingId,
+    ]);
+    return rows.length > 0;
   },
 
   async listSavedListingIds(applicantId: string): Promise<string[]> {
-    const rows = sqlite
-      .prepare(`SELECT listing_id FROM saved_listings WHERE applicant_id = ?`)
-      .all(applicantId) as { listing_id: string }[];
+    const { rows } = await pool.query(`SELECT listing_id FROM saved_listings WHERE applicant_id = $1`, [applicantId]);
     return rows.map((r) => r.listing_id);
   },
 
   // --- shortlisted candidates (company-side mirror of saved listings) ---
 
   async shortlistCandidate(companyId: string, applicantId: string): Promise<void> {
-    sqlite
-      .prepare(
-        `INSERT OR IGNORE INTO shortlisted_candidates (company_id, applicant_id, created_at) VALUES (?, ?, ?)`
-      )
-      .run(companyId, applicantId, new Date().toISOString());
+    await pool.query(
+      `INSERT INTO shortlisted_candidates (company_id, applicant_id, created_at) VALUES ($1, $2, $3)
+       ON CONFLICT (company_id, applicant_id) DO NOTHING`,
+      [companyId, applicantId, new Date().toISOString()]
+    );
   },
 
   async unshortlistCandidate(companyId: string, applicantId: string): Promise<void> {
-    sqlite
-      .prepare(`DELETE FROM shortlisted_candidates WHERE company_id = ? AND applicant_id = ?`)
-      .run(companyId, applicantId);
+    await pool.query(`DELETE FROM shortlisted_candidates WHERE company_id = $1 AND applicant_id = $2`, [
+      companyId,
+      applicantId,
+    ]);
   },
 
   async listShortlistedApplicantIds(companyId: string): Promise<string[]> {
-    const rows = sqlite
-      .prepare(`SELECT applicant_id FROM shortlisted_candidates WHERE company_id = ? ORDER BY created_at DESC`)
-      .all(companyId) as { applicant_id: string }[];
+    const { rows } = await pool.query(
+      `SELECT applicant_id FROM shortlisted_candidates WHERE company_id = $1 ORDER BY created_at DESC`,
+      [companyId]
+    );
     return rows.map((r) => r.applicant_id);
   },
 
@@ -702,18 +701,21 @@ export const db = {
   async createSavedSearch(input: { applicantId: string; name: string; filters: SavedSearchFilters }): Promise<SavedSearch> {
     const id = randomUUID();
     const createdAt = new Date().toISOString();
-    sqlite
-      .prepare(`INSERT INTO saved_searches (id, applicant_id, name, filters, created_at) VALUES (?, ?, ?, ?, ?)`)
-      .run(id, input.applicantId, input.name, JSON.stringify(input.filters), createdAt);
+    await pool.query(`INSERT INTO saved_searches (id, applicant_id, name, filters, created_at) VALUES ($1, $2, $3, $4, $5)`, [
+      id,
+      input.applicantId,
+      input.name,
+      JSON.stringify(input.filters),
+      createdAt,
+    ]);
     return { id, applicantId: input.applicantId, name: input.name, filters: input.filters, createdAt };
   },
 
   async listSavedSearches(applicantId: string): Promise<SavedSearch[]> {
-    return (
-      sqlite
-        .prepare(`SELECT * FROM saved_searches WHERE applicant_id = ? ORDER BY created_at DESC`)
-        .all(applicantId) as any[]
-    ).map((row) => ({
+    const { rows } = await pool.query(`SELECT * FROM saved_searches WHERE applicant_id = $1 ORDER BY created_at DESC`, [
+      applicantId,
+    ]);
+    return rows.map((row) => ({
       id: row.id,
       applicantId: row.applicant_id,
       name: row.name,
@@ -723,14 +725,13 @@ export const db = {
   },
 
   async deleteSavedSearch(id: string, applicantId: string): Promise<boolean> {
-    const result = sqlite
-      .prepare(`DELETE FROM saved_searches WHERE id = ? AND applicant_id = ?`)
-      .run(id, applicantId);
-    return result.changes > 0;
+    const result = await pool.query(`DELETE FROM saved_searches WHERE id = $1 AND applicant_id = $2`, [id, applicantId]);
+    return (result.rowCount ?? 0) > 0;
   },
 
   async listAllSavedSearches(): Promise<SavedSearch[]> {
-    return (sqlite.prepare(`SELECT * FROM saved_searches`).all() as any[]).map((row) => ({
+    const { rows } = await pool.query(`SELECT * FROM saved_searches`);
+    return rows.map((row) => ({
       id: row.id,
       applicantId: row.applicant_id,
       name: row.name,
@@ -742,28 +743,33 @@ export const db = {
   // --- messaging ---
 
   async getOrCreateConversation(applicantId: string, companyId: string): Promise<Conversation> {
-    const existing = sqlite
-      .prepare(`SELECT * FROM conversations WHERE applicant_id = ? AND company_id = ?`)
-      .get(applicantId, companyId);
-    if (existing) return conversationFromRow(existing);
+    const { rows: existingRows } = await pool.query(
+      `SELECT * FROM conversations WHERE applicant_id = $1 AND company_id = $2`,
+      [applicantId, companyId]
+    );
+    if (existingRows[0]) return conversationFromRow(existingRows[0]);
 
     const id = randomUUID();
     const now = new Date().toISOString();
-    sqlite
-      .prepare(`INSERT INTO conversations (id, applicant_id, company_id, created_at, last_message_at) VALUES (?, ?, ?, ?, ?)`)
-      .run(id, applicantId, companyId, now, now);
+    await pool.query(
+      `INSERT INTO conversations (id, applicant_id, company_id, created_at, last_message_at) VALUES ($1, $2, $3, $4, $5)`,
+      [id, applicantId, companyId, now, now]
+    );
     return { id, applicantId, companyId, createdAt: now, lastMessageAt: now };
   },
 
   async getConversationById(id: string): Promise<Conversation | null> {
-    const row = sqlite.prepare(`SELECT * FROM conversations WHERE id = ?`).get(id);
-    return row ? conversationFromRow(row) : null;
+    const { rows } = await pool.query(`SELECT * FROM conversations WHERE id = $1`, [id]);
+    return rows[0] ? conversationFromRow(rows[0]) : null;
   },
 
   async isConversationParticipant(conversationId: string, userId: string, role: UserRole): Promise<boolean> {
     const column = role === "applicant" ? "applicant_id" : "company_id";
-    const row = sqlite.prepare(`SELECT 1 FROM conversations WHERE id = ? AND ${column} = ?`).get(conversationId, userId);
-    return Boolean(row);
+    const { rows } = await pool.query(`SELECT 1 FROM conversations WHERE id = $1 AND ${column} = $2`, [
+      conversationId,
+      userId,
+    ]);
+    return rows.length > 0;
   },
 
   async summarizeConversation(conversation: Conversation, viewerRole: UserRole): Promise<ConversationSummary | null> {
@@ -783,12 +789,15 @@ export const db = {
       otherName = applicant.name || "(no name provided)";
     }
 
-    const lastRow = sqlite
-      .prepare(`SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at DESC LIMIT 1`)
-      .get(conversation.id) as any;
-    const unreadRow = sqlite
-      .prepare(`SELECT COUNT(*) AS n FROM messages WHERE conversation_id = ? AND sender_role = ? AND read_at IS NULL`)
-      .get(conversation.id, otherRole) as { n: number };
+    const { rows: lastRows } = await pool.query(
+      `SELECT * FROM messages WHERE conversation_id = $1 ORDER BY created_at DESC LIMIT 1`,
+      [conversation.id]
+    );
+    const { rows: unreadRows } = await pool.query(
+      `SELECT COUNT(*) AS n FROM messages WHERE conversation_id = $1 AND sender_role = $2 AND read_at IS NULL`,
+      [conversation.id, otherRole]
+    );
+    const lastRow = lastRows[0];
 
     return {
       ...conversation,
@@ -796,15 +805,15 @@ export const db = {
       lastMessage: lastRow
         ? { body: lastRow.body, senderRole: lastRow.sender_role, createdAt: lastRow.created_at }
         : null,
-      unreadCount: unreadRow.n,
+      unreadCount: Number(unreadRows[0].n),
     };
   },
 
   async listConversations(userId: string, role: UserRole): Promise<ConversationSummary[]> {
     const column = role === "applicant" ? "applicant_id" : "company_id";
-    const rows = sqlite
-      .prepare(`SELECT * FROM conversations WHERE ${column} = ? ORDER BY last_message_at DESC`)
-      .all(userId) as any[];
+    const { rows } = await pool.query(`SELECT * FROM conversations WHERE ${column} = $1 ORDER BY last_message_at DESC`, [
+      userId,
+    ]);
 
     const summaries: ConversationSummary[] = [];
     for (const row of rows) {
@@ -815,28 +824,32 @@ export const db = {
   },
 
   async listMessages(conversationId: string): Promise<Message[]> {
-    return (
-      sqlite.prepare(`SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at ASC`).all(conversationId) as any[]
-    ).map(messageFromRow);
+    const { rows } = await pool.query(`SELECT * FROM messages WHERE conversation_id = $1 ORDER BY created_at ASC`, [
+      conversationId,
+    ]);
+    return rows.map(messageFromRow);
   },
 
   async sendMessage(conversationId: string, senderRole: UserRole, body: string): Promise<Message> {
     const id = randomUUID();
     const now = new Date().toISOString();
-    sqlite
-      .prepare(`INSERT INTO messages (id, conversation_id, sender_role, body, created_at) VALUES (?, ?, ?, ?, ?)`)
-      .run(id, conversationId, senderRole, body, now);
-    sqlite.prepare(`UPDATE conversations SET last_message_at = ? WHERE id = ?`).run(now, conversationId);
+    await pool.query(`INSERT INTO messages (id, conversation_id, sender_role, body, created_at) VALUES ($1, $2, $3, $4, $5)`, [
+      id,
+      conversationId,
+      senderRole,
+      body,
+      now,
+    ]);
+    await pool.query(`UPDATE conversations SET last_message_at = $1 WHERE id = $2`, [now, conversationId]);
     return { id, conversationId, senderRole, body, createdAt: now, readAt: null };
   },
 
   async markMessagesRead(conversationId: string, readerRole: UserRole): Promise<void> {
     const now = new Date().toISOString();
-    sqlite
-      .prepare(
-        `UPDATE messages SET read_at = ? WHERE conversation_id = ? AND sender_role != ? AND read_at IS NULL`
-      )
-      .run(now, conversationId, readerRole);
+    await pool.query(
+      `UPDATE messages SET read_at = $1 WHERE conversation_id = $2 AND sender_role != $3 AND read_at IS NULL`,
+      [now, conversationId, readerRole]
+    );
   },
 
   // --- notifications ---
@@ -851,42 +864,45 @@ export const db = {
   }): Promise<Notification> {
     const id = randomUUID();
     const createdAt = new Date().toISOString();
-    sqlite
-      .prepare(
-        `INSERT INTO notifications (id, user_id, role, type, title, body, link, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-      )
-      .run(id, input.userId, input.role, input.type, input.title, input.body, input.link ?? null, createdAt);
+    await pool.query(
+      `INSERT INTO notifications (id, user_id, role, type, title, body, link, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [id, input.userId, input.role, input.type, input.title, input.body, input.link ?? null, createdAt]
+    );
     return { id, userId: input.userId, role: input.role, type: input.type, title: input.title, body: input.body, link: input.link ?? null, createdAt, readAt: null };
   },
 
   async listNotifications(userId: string, role: UserRole, limit = 30): Promise<Notification[]> {
-    return (
-      sqlite
-        .prepare(`SELECT * FROM notifications WHERE user_id = ? AND role = ? ORDER BY created_at DESC LIMIT ?`)
-        .all(userId, role, limit) as any[]
-    ).map(notificationFromRow);
+    const { rows } = await pool.query(
+      `SELECT * FROM notifications WHERE user_id = $1 AND role = $2 ORDER BY created_at DESC LIMIT $3`,
+      [userId, role, limit]
+    );
+    return rows.map(notificationFromRow);
   },
 
   async countUnreadNotifications(userId: string, role: UserRole): Promise<number> {
-    const row = sqlite
-      .prepare(`SELECT COUNT(*) AS n FROM notifications WHERE user_id = ? AND role = ? AND read_at IS NULL`)
-      .get(userId, role) as { n: number };
-    return row.n;
+    const { rows } = await pool.query(
+      `SELECT COUNT(*) AS n FROM notifications WHERE user_id = $1 AND role = $2 AND read_at IS NULL`,
+      [userId, role]
+    );
+    return Number(rows[0].n);
   },
 
   async markAllNotificationsRead(userId: string, role: UserRole): Promise<void> {
     const now = new Date().toISOString();
-    sqlite
-      .prepare(`UPDATE notifications SET read_at = ? WHERE user_id = ? AND role = ? AND read_at IS NULL`)
-      .run(now, userId, role);
+    await pool.query(`UPDATE notifications SET read_at = $1 WHERE user_id = $2 AND role = $3 AND read_at IS NULL`, [
+      now,
+      userId,
+      role,
+    ]);
   },
 
   async markNotificationRead(id: string, userId: string, role: UserRole): Promise<void> {
     const now = new Date().toISOString();
-    sqlite
-      .prepare(`UPDATE notifications SET read_at = ? WHERE id = ? AND user_id = ? AND role = ? AND read_at IS NULL`)
-      .run(now, id, userId, role);
+    await pool.query(
+      `UPDATE notifications SET read_at = $1 WHERE id = $2 AND user_id = $3 AND role = $4 AND read_at IS NULL`,
+      [now, id, userId, role]
+    );
   },
 
   // --- interview proposals ---
@@ -903,13 +919,12 @@ export const db = {
   }): Promise<InterviewProposal> {
     const id = randomUUID();
     const createdAt = new Date().toISOString();
-    sqlite
-      .prepare(
-        `INSERT INTO interview_proposals
-          (id, conversation_id, proposed_by, scheduled_at, duration_minutes, location, note, status, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`
-      )
-      .run(id, input.conversationId, input.proposedBy, input.scheduledAt, input.durationMinutes, input.location, input.note, createdAt);
+    await pool.query(
+      `INSERT INTO interview_proposals
+        (id, conversation_id, proposed_by, scheduled_at, duration_minutes, location, note, status, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8)`,
+      [id, input.conversationId, input.proposedBy, input.scheduledAt, input.durationMinutes, input.location, input.note, createdAt]
+    );
     return {
       id,
       conversationId: input.conversationId,
@@ -925,16 +940,16 @@ export const db = {
   },
 
   async listInterviewProposals(conversationId: string): Promise<InterviewProposal[]> {
-    return (
-      sqlite
-        .prepare(`SELECT * FROM interview_proposals WHERE conversation_id = ? ORDER BY created_at ASC`)
-        .all(conversationId) as any[]
-    ).map(interviewProposalFromRow);
+    const { rows } = await pool.query(
+      `SELECT * FROM interview_proposals WHERE conversation_id = $1 ORDER BY created_at ASC`,
+      [conversationId]
+    );
+    return rows.map(interviewProposalFromRow);
   },
 
   async getInterviewProposal(id: string): Promise<InterviewProposal | null> {
-    const row = sqlite.prepare(`SELECT * FROM interview_proposals WHERE id = ?`).get(id);
-    return row ? interviewProposalFromRow(row) : null;
+    const { rows } = await pool.query(`SELECT * FROM interview_proposals WHERE id = $1`, [id]);
+    return rows[0] ? interviewProposalFromRow(rows[0]) : null;
   },
 
   async respondToInterviewProposal(
@@ -942,10 +957,11 @@ export const db = {
     status: Extract<InterviewProposalStatus, "accepted" | "declined" | "cancelled">
   ): Promise<InterviewProposal | null> {
     const now = new Date().toISOString();
-    const result = sqlite
-      .prepare(`UPDATE interview_proposals SET status = ?, responded_at = ? WHERE id = ? AND status = 'pending'`)
-      .run(status, now, id);
-    if (result.changes === 0) return null;
+    const result = await pool.query(
+      `UPDATE interview_proposals SET status = $1, responded_at = $2 WHERE id = $3 AND status = 'pending'`,
+      [status, now, id]
+    );
+    if ((result.rowCount ?? 0) === 0) return null;
     return db.getInterviewProposal(id);
   },
 
@@ -956,58 +972,65 @@ export const db = {
   // data the app already has.
 
   async getCompanyAnalytics(companyId: string) {
-    const totalListings = (
-      sqlite.prepare(`SELECT COUNT(*) AS n FROM listings WHERE company_id = ?`).get(companyId) as { n: number }
-    ).n;
+    const { rows: totalListingsRows } = await pool.query(`SELECT COUNT(*) AS n FROM listings WHERE company_id = $1`, [
+      companyId,
+    ]);
+    const totalListings = Number(totalListingsRows[0].n);
 
-    const statusRows = sqlite
-      .prepare(
-        `SELECT a.status AS status, COUNT(*) AS n
-         FROM applications a JOIN listings l ON l.id = a.listing_id
-         WHERE l.company_id = ?
-         GROUP BY a.status`
-      )
-      .all(companyId) as { status: ApplicationStatus; n: number }[];
+    const { rows: statusRows } = await pool.query(
+      `SELECT a.status AS status, COUNT(*) AS n
+       FROM applications a JOIN listings l ON l.id = a.listing_id
+       WHERE l.company_id = $1
+       GROUP BY a.status`,
+      [companyId]
+    );
     const byStatus: Record<string, number> = {};
-    for (const row of statusRows) byStatus[row.status] = row.n;
-    const totalApplications = statusRows.reduce((sum, r) => sum + r.n, 0);
+    let totalApplications = 0;
+    for (const row of statusRows) {
+      const n = Number(row.n);
+      byStatus[row.status as ApplicationStatus] = n;
+      totalApplications += n;
+    }
 
-    const perListingRows = sqlite
-      .prepare(
-        `SELECT l.id AS listingId, l.title AS title, COUNT(a.id) AS applicationCount
-         FROM listings l LEFT JOIN applications a ON a.listing_id = l.id
-         WHERE l.company_id = ?
-         GROUP BY l.id
-         ORDER BY applicationCount DESC`
-      )
-      .all(companyId) as { listingId: string; title: string; applicationCount: number }[];
+    const { rows: perListingRows } = await pool.query(
+      `SELECT l.id AS "listingId", l.title AS title, COUNT(a.id) AS "applicationCount"
+       FROM listings l LEFT JOIN applications a ON a.listing_id = l.id
+       WHERE l.company_id = $1
+       GROUP BY l.id
+       ORDER BY "applicationCount" DESC`,
+      [companyId]
+    );
+    const perListing = perListingRows.map((r) => ({
+      listingId: r.listingId,
+      title: r.title,
+      applicationCount: Number(r.applicationCount),
+    }));
 
-    const dailyRows = sqlite
-      .prepare(
-        `SELECT substr(a.submitted_at, 1, 10) AS day, COUNT(*) AS n
-         FROM applications a JOIN listings l ON l.id = a.listing_id
-         WHERE l.company_id = ? AND a.submitted_at >= ?
-         GROUP BY day
-         ORDER BY day ASC`
-      )
-      .all(companyId, new Date(Date.now() - 29 * 24 * 60 * 60 * 1000).toISOString()) as { day: string; n: number }[];
+    const { rows: dailyRows } = await pool.query(
+      `SELECT LEFT(a.submitted_at, 10) AS day, COUNT(*) AS n
+       FROM applications a JOIN listings l ON l.id = a.listing_id
+       WHERE l.company_id = $1 AND a.submitted_at >= $2
+       GROUP BY day
+       ORDER BY day ASC`,
+      [companyId, new Date(Date.now() - 29 * 24 * 60 * 60 * 1000).toISOString()]
+    );
+    const dailyApplications = dailyRows.map((r) => ({ day: r.day, n: Number(r.n) }));
 
-    return { totalListings, totalApplications, byStatus, perListing: perListingRows, dailyApplications: dailyRows };
+    return { totalListings, totalApplications, byStatus, perListing, dailyApplications };
   },
 
   // --- upcoming interviews (across every conversation at once) ---
 
   async listUpcomingInterviews(userId: string, role: UserRole): Promise<UpcomingInterview[]> {
     const column = role === "applicant" ? "applicant_id" : "company_id";
-    const rows = sqlite
-      .prepare(
-        `SELECT ip.*, c.applicant_id AS conv_applicant_id, c.company_id AS conv_company_id
-         FROM interview_proposals ip
-         JOIN conversations c ON c.id = ip.conversation_id
-         WHERE c.${column} = ? AND ip.status = 'accepted' AND ip.scheduled_at >= ?
-         ORDER BY ip.scheduled_at ASC`
-      )
-      .all(userId, new Date().toISOString()) as any[];
+    const { rows } = await pool.query(
+      `SELECT ip.*, c.applicant_id AS conv_applicant_id, c.company_id AS conv_company_id
+       FROM interview_proposals ip
+       JOIN conversations c ON c.id = ip.conversation_id
+       WHERE c.${column} = $1 AND ip.status = 'accepted' AND ip.scheduled_at >= $2
+       ORDER BY ip.scheduled_at ASC`,
+      [userId, new Date().toISOString()]
+    );
 
     const results: UpcomingInterview[] = [];
     for (const row of rows) {
@@ -1080,84 +1103,80 @@ export const db = {
   // those dangling would just accumulate orphaned rows pointing at nothing.
 
   async deleteApplicantAccount(applicantId: string): Promise<void> {
-    const run = sqlite.transaction(() => {
-      const conversationIds = (
-        sqlite.prepare(`SELECT id FROM conversations WHERE applicant_id = ?`).all(applicantId) as { id: string }[]
-      ).map((r) => r.id);
-      for (const id of conversationIds) {
-        sqlite.prepare(`DELETE FROM interview_proposals WHERE conversation_id = ?`).run(id);
-        sqlite.prepare(`DELETE FROM messages WHERE conversation_id = ?`).run(id);
+    await withTransaction(async (client) => {
+      const { rows: conversations } = await client.query(`SELECT id FROM conversations WHERE applicant_id = $1`, [
+        applicantId,
+      ]);
+      for (const { id } of conversations) {
+        await client.query(`DELETE FROM interview_proposals WHERE conversation_id = $1`, [id]);
+        await client.query(`DELETE FROM messages WHERE conversation_id = $1`, [id]);
       }
-      sqlite.prepare(`DELETE FROM conversations WHERE applicant_id = ?`).run(applicantId);
-      sqlite.prepare(`DELETE FROM shortlisted_candidates WHERE applicant_id = ?`).run(applicantId);
-      sqlite.prepare(`DELETE FROM saved_searches WHERE applicant_id = ?`).run(applicantId);
-      sqlite.prepare(`DELETE FROM saved_listings WHERE applicant_id = ?`).run(applicantId);
-      sqlite.prepare(`DELETE FROM reuse_answers WHERE applicant_id = ?`).run(applicantId);
-      sqlite.prepare(`DELETE FROM extension_tokens WHERE applicant_id = ?`).run(applicantId);
-      sqlite.prepare(`DELETE FROM voluntary_disclosures WHERE applicant_id = ?`).run(applicantId);
-      sqlite.prepare(`DELETE FROM applications WHERE applicant_id = ?`).run(applicantId);
-      sqlite.prepare(`DELETE FROM notifications WHERE user_id = ? AND role = 'applicant'`).run(applicantId);
-      sqlite.prepare(`DELETE FROM applicants WHERE id = ?`).run(applicantId);
-      sqlite.prepare(`DELETE FROM users WHERE id = ?`).run(applicantId);
+      await client.query(`DELETE FROM conversations WHERE applicant_id = $1`, [applicantId]);
+      await client.query(`DELETE FROM shortlisted_candidates WHERE applicant_id = $1`, [applicantId]);
+      await client.query(`DELETE FROM saved_searches WHERE applicant_id = $1`, [applicantId]);
+      await client.query(`DELETE FROM saved_listings WHERE applicant_id = $1`, [applicantId]);
+      await client.query(`DELETE FROM reuse_answers WHERE applicant_id = $1`, [applicantId]);
+      await client.query(`DELETE FROM extension_tokens WHERE applicant_id = $1`, [applicantId]);
+      await client.query(`DELETE FROM voluntary_disclosures WHERE applicant_id = $1`, [applicantId]);
+      await client.query(`DELETE FROM applications WHERE applicant_id = $1`, [applicantId]);
+      await client.query(`DELETE FROM notifications WHERE user_id = $1 AND role = 'applicant'`, [applicantId]);
+      await client.query(`DELETE FROM applicants WHERE id = $1`, [applicantId]);
+      await client.query(`DELETE FROM users WHERE id = $1`, [applicantId]);
     });
-    run();
   },
 
   async deleteCompanyAccount(companyId: string): Promise<void> {
-    const run = sqlite.transaction(() => {
-      const conversationIds = (
-        sqlite.prepare(`SELECT id FROM conversations WHERE company_id = ?`).all(companyId) as { id: string }[]
-      ).map((r) => r.id);
-      for (const id of conversationIds) {
-        sqlite.prepare(`DELETE FROM interview_proposals WHERE conversation_id = ?`).run(id);
-        sqlite.prepare(`DELETE FROM messages WHERE conversation_id = ?`).run(id);
+    await withTransaction(async (client) => {
+      const { rows: conversations } = await client.query(`SELECT id FROM conversations WHERE company_id = $1`, [
+        companyId,
+      ]);
+      for (const { id } of conversations) {
+        await client.query(`DELETE FROM interview_proposals WHERE conversation_id = $1`, [id]);
+        await client.query(`DELETE FROM messages WHERE conversation_id = $1`, [id]);
       }
-      sqlite.prepare(`DELETE FROM conversations WHERE company_id = ?`).run(companyId);
-      sqlite.prepare(`DELETE FROM shortlisted_candidates WHERE company_id = ?`).run(companyId);
+      await client.query(`DELETE FROM conversations WHERE company_id = $1`, [companyId]);
+      await client.query(`DELETE FROM shortlisted_candidates WHERE company_id = $1`, [companyId]);
 
-      const listingIds = (
-        sqlite.prepare(`SELECT id FROM listings WHERE company_id = ?`).all(companyId) as { id: string }[]
-      ).map((r) => r.id);
-      for (const id of listingIds) {
-        sqlite.prepare(`DELETE FROM applications WHERE listing_id = ?`).run(id);
-        sqlite.prepare(`DELETE FROM saved_listings WHERE listing_id = ?`).run(id);
+      const { rows: listings } = await client.query(`SELECT id FROM listings WHERE company_id = $1`, [companyId]);
+      for (const { id } of listings) {
+        await client.query(`DELETE FROM applications WHERE listing_id = $1`, [id]);
+        await client.query(`DELETE FROM saved_listings WHERE listing_id = $1`, [id]);
       }
-      sqlite.prepare(`DELETE FROM listings WHERE company_id = ?`).run(companyId);
+      await client.query(`DELETE FROM listings WHERE company_id = $1`, [companyId]);
 
-      sqlite.prepare(`DELETE FROM notifications WHERE user_id = ? AND role = 'company'`).run(companyId);
-      sqlite.prepare(`DELETE FROM companies WHERE id = ?`).run(companyId);
-      sqlite.prepare(`DELETE FROM users WHERE id = ?`).run(companyId);
+      await client.query(`DELETE FROM notifications WHERE user_id = $1 AND role = 'company'`, [companyId]);
+      await client.query(`DELETE FROM companies WHERE id = $1`, [companyId]);
+      await client.query(`DELETE FROM users WHERE id = $1`, [companyId]);
     });
-    run();
   },
 };
 
 function listingParams(id: string, companyId: string, createdAt: string, input: Omit<Listing, "id" | "companyId" | "createdAt">) {
-  return {
+  return [
     id,
     companyId,
     createdAt,
-    title: input.title,
-    location: input.location,
-    country: input.country,
-    origin: input.origin,
-    department: input.department,
-    workArrangement: input.workArrangement,
-    requiredEducationLevel: input.requiredEducationLevel,
-    duration: input.duration,
-    startDate: input.startDate,
-    startLabel: input.startLabel,
-    endLabel: input.endLabel,
-    compensation: input.compensation,
-    applicationDeadline: input.applicationDeadline,
-    description: input.description,
-    requirements: JSON.stringify(input.requirements),
-    skills: JSON.stringify(input.skills),
-    targetFields: JSON.stringify(input.targetFields),
-    requiredLanguages: JSON.stringify(input.requiredLanguages),
-    industries: JSON.stringify(input.industries),
-    preferredQualifications: JSON.stringify(input.preferredQualifications),
-    eligibility: JSON.stringify(input.eligibility),
-    extraQuestions: JSON.stringify(input.extraQuestions),
-  };
+    input.title,
+    input.location,
+    input.country,
+    input.origin,
+    input.department,
+    input.workArrangement,
+    input.requiredEducationLevel,
+    input.duration,
+    input.startDate,
+    input.startLabel,
+    input.endLabel,
+    input.compensation,
+    input.applicationDeadline,
+    input.description,
+    JSON.stringify(input.requirements),
+    JSON.stringify(input.skills),
+    JSON.stringify(input.targetFields),
+    JSON.stringify(input.requiredLanguages),
+    JSON.stringify(input.industries),
+    JSON.stringify(input.preferredQualifications),
+    JSON.stringify(input.eligibility),
+    JSON.stringify(input.extraQuestions),
+  ];
 }

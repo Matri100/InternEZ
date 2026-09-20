@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import session from "express-session";
 import { seedIfEmpty } from "./db/seed.js";
-import { SqliteSessionStore } from "./db/sessionStore.js";
+import { PgSessionStore } from "./db/sessionStore.js";
 import { authRouter } from "./routes/auth.js";
 import { profileRouter } from "./routes/profile.js";
 import { listingsRouter } from "./routes/listings.js";
@@ -23,7 +23,7 @@ app.use(cors({ origin: true, credentials: true }));
 // of the profile — see MAX_DOCUMENT_BYTES in routes/profile.ts.
 app.use(express.json({ limit: "20mb" }));
 
-// Sessions persist to SQLite (see db/sessionStore.ts) so logins survive a
+// Sessions persist to Postgres (see db/sessionStore.ts) so logins survive a
 // server restart. The secret has a fixed dev fallback rather than a random
 // one precisely so that stays true — a per-boot random secret would make
 // every previously-issued cookie's signature invalid on the next restart,
@@ -31,7 +31,7 @@ app.use(express.json({ limit: "20mb" }));
 // Set SESSION_SECRET for a real deployment.
 app.use(
   session({
-    store: new SqliteSessionStore(),
+    store: new PgSessionStore(),
     secret: process.env.SESSION_SECRET ?? "internez-dev-secret-change-me",
     resave: false,
     saveUninitialized: false,
