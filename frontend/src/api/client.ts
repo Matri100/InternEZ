@@ -24,8 +24,16 @@ import type {
   VoluntaryDisclosures,
 } from "../types/domain";
 
+// In dev, relative "/api" works because Vite's dev server proxies it to
+// the local backend (see vite.config.ts). Once the frontend is a static
+// build served from its own origin (e.g. Cloudflare Pages), there's no
+// proxy — VITE_API_BASE_URL points requests at the real backend domain
+// instead. Baked in at build time, so it must be set wherever the
+// production build actually runs (the Pages build step, not the browser).
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`/api${path}`, {
+  const res = await fetch(`${API_BASE}${path}`, {
     headers: { "Content-Type": "application/json" },
     credentials: "include",
     ...init,
