@@ -17,7 +17,14 @@ import { requireApplicant, requireCompany, requireAuth } from "./middleware/auth
 const app = express();
 const PORT = process.env.PORT ? Number(process.env.PORT) : 4000;
 
-app.use(cors({ origin: true, credentials: true }));
+// origin: true (reflect any request's Origin back) is fine on localhost —
+// there's no one else to reflect. On a real domain it would let any
+// website make credentialed requests and ride along on a logged-in user's
+// session cookie, so production needs an explicit allowlist instead. Set
+// CORS_ORIGIN to a comma-separated list of allowed origins for a real
+// deployment (e.g. "https://internez.eu,https://www.internez.eu").
+const allowedOrigins = (process.env.CORS_ORIGIN ?? "http://localhost:5173").split(",").map((o) => o.trim());
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 // Raised from the default 100kb so base64-encoded profile documents (ID
 // photo, transcript, etc.) can ride along in the same JSON PUT as the rest
 // of the profile — see MAX_DOCUMENT_BYTES in routes/profile.ts.
@@ -37,7 +44,11 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: false, // dev runs over http; set true once served over https
+      // Frontend and backend will live on sibling subdomains of the same
+      // registrable domain (internez.eu / api.internez.eu) — that's
+      // "same-site" for cookie purposes even though it's cross-origin, so
+      // sameSite: "lax" already covers it; no need to loosen to "none".
+      secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     },
