@@ -2,6 +2,7 @@ import { Router } from "express";
 import { randomUUID } from "node:crypto";
 import { db } from "../models/store.js";
 import { hashPassword, verifyPassword } from "../services/passwords.js";
+import { authLimiter } from "../middleware/rateLimit.js";
 import type { AuthUser, UserRole } from "../types/domain.js";
 
 export const authRouter = Router();
@@ -10,7 +11,17 @@ function isValidRole(value: unknown): value is UserRole {
   return value === "applicant" || value === "company";
 }
 
-authRouter.post("/signup", async (req, res) => {
+// A nonexistent email currently short-circuits before ever calling
+// verifyPassword (no stored hash to check against), which makes it
+// measurably faster than a wrong password for a real account — scrypt is
+// deliberately slow, so that gap is a timing side-channel an attacker
+// could use to enumerate which emails have accounts. Running verifyPassword
+// against this fixed dummy hash even when there's no real user keeps the
+// two cases' timing the same; the actual value never matters since it's
+// never a real password.
+const DUMMY_PASSWORD_HASH = hashPassword("not-a-real-password-timing-decoy");
+
+authRouter.post("/signup", authLimiter, async (req, res) => {
   const { email, password, role, name } = req.body ?? {};
 
   if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -71,26 +82,49 @@ authRouter.post("/signup", async (req, res) => {
     });
   }
 
-  req.session.userId = id;
-  req.session.role = role;
-  const user: AuthUser = { id, email: normalizedEmail, role };
-  res.status(201).json(user);
+  // Regenerating the session on the anonymous→authenticated transition
+  // (rather than just setting userId/role on whatever session already
+  // exists) prevents session fixation — an attacker who got a victim to
+  // adopt a known session ID before login can't inherit it after login,
+  // since login now issues a fresh one.
+  req.session.regenerate((err) => {
+    if (err) {
+      res.status(500).json({ error: "Something went wrong — please try again." });
+      return;
+    }
+    req.session.userId = id;
+    req.session.role = role;
+    const user: AuthUser = { id, email: normalizedEmail, role };
+    res.status(201).json(user);
+  });
 });
 
-authRouter.post("/login", async (req, res) => {
+authRouter.post("/login", authLimiter, async (req, res) => {
   const { email, password } = req.body ?? {};
   const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
+  const submittedPassword = typeof password === "string" ? password : "";
   const stored = normalizedEmail ? await db.getUserByEmail(normalizedEmail) : null;
 
-  if (!stored || typeof password !== "string" || !verifyPassword(password, stored.passwordHash)) {
+  // Always run verifyPassword, even for an email that doesn't exist —
+  // checking `stored` against the real hash when present, or the fixed
+  // decoy hash when not, so both cases cost the same scrypt computation
+  // and don't leak which emails have accounts via response timing.
+  const passwordOk = verifyPassword(submittedPassword, stored?.passwordHash ?? DUMMY_PASSWORD_HASH);
+  if (!stored || !passwordOk) {
     res.status(401).json({ error: "Incorrect email or password" });
     return;
   }
 
-  req.session.userId = stored.id;
-  req.session.role = stored.role;
-  const user: AuthUser = { id: stored.id, email: stored.email, role: stored.role };
-  res.json(user);
+  req.session.regenerate((err) => {
+    if (err) {
+      res.status(500).json({ error: "Something went wrong — please try again." });
+      return;
+    }
+    req.session.userId = stored.id;
+    req.session.role = stored.role;
+    const user: AuthUser = { id: stored.id, email: stored.email, role: stored.role };
+    res.json(user);
+  });
 });
 
 authRouter.post("/logout", (req, res) => {

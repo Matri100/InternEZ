@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 import session from "express-session";
 import { seedIfEmpty } from "./db/seed.js";
 import { PgSessionStore } from "./db/sessionStore.js";
@@ -16,6 +17,25 @@ import { requireApplicant, requireCompany, requireAuth } from "./middleware/auth
 
 const app = express();
 const PORT = process.env.PORT ? Number(process.env.PORT) : 4000;
+
+// Deployed behind exactly one reverse proxy (Railway's edge) — "1" trusts
+// that single hop's X-Forwarded-For entry as the real client IP, not the
+// proxy's own. Without this, req.ip is the proxy's IP for every request,
+// which silently breaks every IP-keyed rate limiter in this app (they'd
+// all see one "client" and either rate-limit everyone together or no one
+// meaningfully). Bump to 2 if Cloudflare's proxy ever gets enabled in
+// front of this too (currently DNS-only — see api.internez.eu's CNAME).
+app.set("trust proxy", 1);
+
+app.use(helmet({
+  // Helmet's default Cross-Origin-Resource-Policy is "same-origin", which
+  // would make browsers block the frontend (internez.eu) from reading
+  // responses from this API (api.internez.eu) even with CORS allowing it —
+  // CORP is enforced independently of CORS. This is a JSON API, not a page
+  // serving its own scripts/styles, so there's no CSP tradeoff in opening
+  // this up the way there would be for a document-serving origin.
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+}));
 
 // origin: true (reflect any request's Origin back) is fine on localhost —
 // there's no one else to reflect. On a real domain it would let any

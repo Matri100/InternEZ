@@ -22,3 +22,19 @@ export const writeLimiter = rateLimit({
   keyGenerator: keyByUser,
   message: { error: "Too many requests — please slow down and try again in a moment." },
 });
+
+// Login/signup had no rate limit at all before this — unlimited password
+// guesses against a real account, or unlimited account-creation spam.
+// Tighter than writeLimiter on purpose (10 per 15 min, not 20 per 1 min):
+// OWASP-style guidance for an auth endpoint specifically, not a general
+// write path. keyByUser still works here even though nobody's signed in
+// yet — there's no session cookie before a successful login/signup
+// (saveUninitialized: false), so it already falls through to the IP key.
+export const authLimiter = rateLimit({
+  windowMs: 15 * 60_000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: keyByUser,
+  message: { error: "Too many attempts — please wait a few minutes and try again." },
+});
