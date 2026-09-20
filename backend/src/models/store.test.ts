@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { db } from "./store.js";
 import type { Applicant, Listing } from "../types/domain.js";
 
@@ -425,10 +425,4 @@ describe("account deletion", () => {
     expect(await db.getApplicant(bystanderId)).not.toBeNull();
     expect(await db.listSavedListingIds(bystanderId)).toContain(bystanderListing.id);
   });
-});
-
-beforeAll(() => {
-  // Sanity check that this suite really is running against an isolated
-  // in-memory database, not the real dev data file.
-  expect(process.env.INTERNEZ_DB_PATH).toBe(":memory:");
 });

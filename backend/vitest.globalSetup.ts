@@ -9,6 +9,17 @@
 // the TRUNCATE below runs, even against a brand-new Postgres instance (e.g.
 // a fresh CI service container).
 export default async function globalSetup() {
+  // The TRUNCATE below is destructive — this is a heuristic guard against
+  // accidentally pointing a local `npm test` run at a real dev/staging
+  // DATABASE_URL and wiping it, not a substitute for using a genuinely
+  // separate test database (which CI already does via POSTGRES_DB).
+  const url = process.env.DATABASE_URL ?? "";
+  if (!/test/i.test(url)) {
+    throw new Error(
+      `DATABASE_URL doesn't look like a test database (expected "test" somewhere in the name): ${url || "(unset)"}`
+    );
+  }
+
   const { pool } = await import("./src/db/database.js");
   await pool.query(`
     TRUNCATE TABLE
