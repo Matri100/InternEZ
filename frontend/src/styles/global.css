@@ -2035,6 +2035,65 @@ fieldset {
   border-top: 1px solid var(--border);
 }
 
+/* Early access gate — deliberately not another auth-card. Same masthead
+   chrome as the rest of the site (so it reads as "the front door", not a
+   generic login form), a top accent bar instead of the left-edge accent
+   used for status chips elsewhere, and the same kicker+serif-heading
+   treatment as the landing hero. */
+.gate-page {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.gate-hero {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-7) var(--space-4);
+}
+
+.gate-card {
+  width: 100%;
+  max-width: 440px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--accent);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-card);
+}
+
+.gate-kicker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--steel-ink);
+  padding-bottom: var(--space-3);
+  margin-bottom: var(--space-4);
+  border-bottom: 2px solid var(--steel);
+}
+
+.gate-card h1 {
+  font-family: var(--font-serif);
+  font-size: 25px;
+  line-height: 1.28;
+  margin: 0 0 var(--space-3);
+}
+
+.gate-copy {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-5);
+}
+
 @media (max-width: 860px) {
   .detail-grid {
     grid-template-columns: 1fr;
