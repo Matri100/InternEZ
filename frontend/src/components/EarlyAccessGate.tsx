@@ -3,14 +3,15 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
 // Wraps the entire app (see App.tsx) — nothing else mounts, and no other
-// request fires, until a valid key is proven. Backed by a cookie the
-// server sets on /unlock (24h, see routes/earlyAccess.ts) rather than
-// anything tracked here — tried sessionStorage (per-tab, but iOS Safari
-// can clear a backgrounded tab's copy when switching apps) and then
-// localStorage with a manual expiry before landing on a cookie, which is
-// the one mechanism mobile browsers are actually careful not to break on
-// backgrounding. credentials: "include" is doing the real work below;
-// there's nothing to read or store on this side any more.
+// request fires, until a valid key is proven. Backed entirely by a cookie
+// the server sets on /unlock (24h, see routes/earlyAccess.ts) — nothing
+// tracked on this side beyond credentials: "include". Client-side storage
+// (sessionStorage, then localStorage with a manual expiry) was tried
+// first and dropped: unreliable on mobile, where backgrounding the
+// browser could silently clear it. Known accepted limitation: unlocking
+// still isn't fully reliable on mobile even with the cookie — partners
+// use desktop for now. The gate itself still blocks mobile visitors
+// correctly; it just doesn't always let an authorized one back in.
 export function EarlyAccessGate({ children }: { children: ReactNode }) {
   const [granted, setGranted] = useState<boolean | null>(null);
   const [key, setKey] = useState("");
