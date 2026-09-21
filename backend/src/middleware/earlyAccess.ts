@@ -1,16 +1,13 @@
 import type { NextFunction, Request, Response } from "express";
 import { timingSafeEqual } from "node:crypto";
 
-declare module "express-session" {
-  interface SessionData {
-    earlyAccessGranted?: boolean;
-  }
-}
-
 // Empty/unset key means the gate is off entirely — the default for local
 // dev and for whenever the site is ready to be public. Setting
 // EARLY_ACCESS_KEY in production turns it on with no code change.
 const EARLY_ACCESS_KEY = process.env.EARLY_ACCESS_KEY ?? "";
+
+export const EARLY_ACCESS_COOKIE = "iez_ea";
+export const EARLY_ACCESS_COOKIE_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24h
 
 export function isEarlyAccessEnabled(): boolean {
   return EARLY_ACCESS_KEY.length > 0;
@@ -23,14 +20,41 @@ export function checkEarlyAccessKey(submitted: string): boolean {
   return timingSafeEqual(a, b);
 }
 
-// Applied globally ahead of every route except /api/health and
-// /api/early-access itself (see index.ts) — a shared key gating the whole
-// app while it's not meant to be publicly visible yet, not a per-user
-// permission. Session-backed like login, so a partner who's entered it once
-// stays in for the life of the cookie (30 days) instead of re-entering it
-// every visit.
+// No dependency on express-session or cookie-parser — this is the one
+// cookie in the app not going through either, on purpose, so it can't be
+// touched by session.regenerate() (see routes/auth.ts's history) and
+// doesn't need a new package for what's a two-line parse.
+export function getEarlyAccessCookie(req: Request): string | null {
+  const header = req.headers.cookie;
+  if (!header) return null;
+  for (const part of header.split(";")) {
+    const eq = part.indexOf("=");
+    if (eq === -1) continue;
+    if (part.slice(0, eq).trim() === EARLY_ACCESS_COOKIE) {
+      try {
+        return decodeURIComponent(part.slice(eq + 1).trim());
+      } catch {
+        return null;
+      }
+    }
+  }
+  return null;
+}
+
+// Tried sessionStorage first (per-tab, but unreliable on mobile — iOS
+// Safari can clear a backgrounded tab's sessionStorage when switching
+// apps), then localStorage with an expiry (more reliable, but still not
+// what browsers actually build for this). A cookie is the mechanism
+// mobile browsers are careful not to break on backgrounding, which is
+// exactly the problem this exists to solve — same 24h expiry as before,
+// just via Max-Age instead of a value the frontend has to track itself.
 export function requireEarlyAccess(req: Request, res: Response, next: NextFunction) {
-  if (!isEarlyAccessEnabled() || req.session.earlyAccessGranted) {
+  if (!isEarlyAccessEnabled()) {
+    next();
+    return;
+  }
+  const provided = getEarlyAccessCookie(req);
+  if (typeof provided === "string" && checkEarlyAccessKey(provided)) {
     next();
     return;
   }

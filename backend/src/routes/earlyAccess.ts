@@ -1,21 +1,43 @@
 import { Router } from "express";
 import { authLimiter } from "../middleware/rateLimit.js";
-import { checkEarlyAccessKey, isEarlyAccessEnabled } from "../middleware/earlyAccess.js";
+import {
+  EARLY_ACCESS_COOKIE,
+  EARLY_ACCESS_COOKIE_MAX_AGE_MS,
+  checkEarlyAccessKey,
+  getEarlyAccessCookie,
+  isEarlyAccessEnabled,
+} from "../middleware/earlyAccess.js";
 
 export const earlyAccessRouter = Router();
 
-earlyAccessRouter.get("/status", (req, res) => {
-  res.json({ granted: !isEarlyAccessEnabled() || Boolean(req.session.earlyAccessGranted) });
+// Re-checked on mount against whatever cookie is already there (if any) —
+// rate limited since, like /unlock, it's validating a submitted value and
+// is just as guessable otherwise.
+earlyAccessRouter.get("/status", authLimiter, (req, res) => {
+  if (!isEarlyAccessEnabled()) {
+    res.json({ granted: true });
+    return;
+  }
+  const provided = getEarlyAccessCookie(req);
+  res.json({ granted: typeof provided === "string" && checkEarlyAccessKey(provided) });
 });
 
-// Reuses authLimiter (10/15min) — a shared key handed to multiple partners
-// still shouldn't be brute-forceable.
 earlyAccessRouter.post("/unlock", authLimiter, (req, res) => {
   const { key } = req.body ?? {};
   if (typeof key !== "string" || !checkEarlyAccessKey(key)) {
     res.status(401).json({ error: "Incorrect key" });
     return;
   }
-  req.session.earlyAccessGranted = true;
+  // httpOnly (not readable via JS — the frontend doesn't need to, the
+  // browser just resends it), sameSite: lax (internez.eu and
+  // api.internez.eu are sibling subdomains of the same registrable
+  // domain, so this is "same-site" for cookie purposes despite being
+  // cross-origin — see index.ts's login cookie for the same reasoning).
+  res.cookie(EARLY_ACCESS_COOKIE, key, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: EARLY_ACCESS_COOKIE_MAX_AGE_MS,
+  });
   res.json({ granted: true });
 });

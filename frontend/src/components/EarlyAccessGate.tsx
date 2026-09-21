@@ -3,9 +3,14 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
 // Wraps the entire app (see App.tsx) — nothing else mounts, and no other
-// request fires, until the backend says this session has the early access
-// flag (see middleware/earlyAccess.ts). When EARLY_ACCESS_KEY isn't set on
-// the backend, /status reports granted immediately and this is invisible.
+// request fires, until a valid key is proven. Backed by a cookie the
+// server sets on /unlock (24h, see routes/earlyAccess.ts) rather than
+// anything tracked here — tried sessionStorage (per-tab, but iOS Safari
+// can clear a backgrounded tab's copy when switching apps) and then
+// localStorage with a manual expiry before landing on a cookie, which is
+// the one mechanism mobile browsers are actually careful not to break on
+// backgrounding. credentials: "include" is doing the real work below;
+// there's nothing to read or store on this side any more.
 export function EarlyAccessGate({ children }: { children: ReactNode }) {
   const [granted, setGranted] = useState<boolean | null>(null);
   const [key, setKey] = useState("");
@@ -53,64 +58,29 @@ export function EarlyAccessGate({ children }: { children: ReactNode }) {
   if (!granted) {
     return (
       <div className="gate-page">
-        <div className="gate-doc">
-          <span className="gate-corner-bl" />
-          <span className="gate-corner-br" />
-          <div className="gate-stamp">RESTRICTED</div>
+        <div className="gate-panel">
+          <span className="wordmark">
+            Intern<span>EZ</span>
+          </span>
 
-          <div className="gate-doc-header">
-            <span>
-              CLASS: <b>PRE-LAUNCH</b>
-            </span>
-            <span>DIST: LIMITED</span>
-          </div>
-
-          <div className="gate-redactions" aria-hidden="true">
-            <span style={{ width: "72%" }} />
-            <span style={{ width: "91%" }} />
-            <span style={{ width: "48%" }} />
-          </div>
-
-          <h1 className="gate-title">
-            INTERNEZ<span className="cursor">_</span>
-          </h1>
-          <p className="gate-copy">
-            This build is not for general distribution. If you've been issued a clearance key, enter it below to
-            proceed.
-          </p>
-
-          <form onSubmit={handleSubmit}>
-            <label htmlFor="early-access-key" className="gate-field-label">
-              CLEARANCE KEY
-            </label>
-            <div className="gate-input-row">
-              <span className="gate-prompt">&gt;</span>
-              <input
-                id="early-access-key"
-                type="password"
-                className="gate-input"
-                value={key}
-                onChange={(e) => setKey(e.target.value)}
-                autoComplete="off"
-                autoFocus
-                required
-                placeholder="••••••••"
-              />
-            </div>
-            {error && (
-              <p className="gate-error">
-                <b>ACCESS DENIED</b> — {error}
-              </p>
-            )}
+          <form className="gate-form" onSubmit={handleSubmit}>
+            <input
+              id="early-access-key"
+              type="password"
+              className="gate-input"
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+              autoComplete="off"
+              autoFocus
+              required
+              placeholder="Access key"
+              aria-label="Access key"
+            />
+            {error && <p className="gate-error">{error}</p>}
             <button type="submit" className="gate-submit" disabled={submitting}>
-              {submitting ? "Verifying…" : "Authenticate"}
+              {submitting ? "Verifying…" : "Authorize"}
             </button>
           </form>
-
-          <div className="gate-doc-footer">
-            <span>DOC-REF: IEZ-EA-004</span>
-            <span>CLEARANCE: PARTNER</span>
-          </div>
         </div>
       </div>
     );

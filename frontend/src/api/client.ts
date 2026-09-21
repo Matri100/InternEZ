@@ -46,6 +46,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     window.location.href = "/login";
     return new Promise<T>(() => {});
   }
+  // The early-access cookie expired or stopped working mid-session —
+  // reloading sends the user back through EarlyAccessGate cleanly instead
+  // of leaving every request on the page failing silently.
+  if (res.status === 403) {
+    const body = await res.json().catch(() => ({}));
+    if (body.earlyAccessRequired) {
+      window.location.reload();
+      return new Promise<T>(() => {});
+    }
+    throw new Error(body.error ?? `Request failed: ${res.status}`);
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error ?? `Request failed: ${res.status}`);
