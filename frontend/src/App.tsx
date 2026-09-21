@@ -8,6 +8,8 @@ import { useUnreadMessages } from "./hooks/useUnreadMessages";
 import { Landing } from "./pages/Landing";
 import { Login } from "./pages/Login";
 import { Signup } from "./pages/Signup";
+import { Terms } from "./pages/Terms";
+import { Privacy } from "./pages/Privacy";
 import { Profile } from "./pages/Profile";
 import { ResumeView } from "./pages/ResumeView";
 import { Browse } from "./pages/Browse";
@@ -162,6 +164,8 @@ export default function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<Privacy />} />
 
         <Route element={<AppLayout />}>
           <Route element={<RequireApplicant />}>

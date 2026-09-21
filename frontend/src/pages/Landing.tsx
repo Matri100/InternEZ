@@ -107,7 +107,10 @@ export function Landing() {
         <span className="wordmark">
           Intern<span>EZ</span>
         </span>
-        <span className="landing-footer-note">A standardized internship application platform for the EU/EEA.</span>
+        <span className="landing-footer-note">
+          A standardized internship application platform for the EU/EEA. <Link to="/terms">Terms</Link> ·{" "}
+          <Link to="/privacy">Privacy</Link>
+        </span>
       </footer>
     </div>
   );

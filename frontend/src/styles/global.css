@@ -2298,6 +2298,72 @@ fieldset {
   color: var(--text-faint);
 }
 
+.landing-footer-note a {
+  color: var(--text-faint);
+  text-decoration: underline;
+}
+
+.landing-footer-note a:hover {
+  color: var(--accent);
+}
+
+.legal-page {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: var(--space-7) var(--space-5) var(--space-8);
+}
+
+.legal-page h1 {
+  font-size: 32px;
+  margin-bottom: var(--space-2);
+}
+
+.legal-updated {
+  font-size: 13px;
+  color: var(--text-faint);
+  margin-bottom: var(--space-6);
+}
+
+.legal-page h2 {
+  font-size: 20px;
+  margin-top: var(--space-7);
+  margin-bottom: var(--space-3);
+}
+
+.legal-page h3 {
+  font-size: 16px;
+  margin-top: var(--space-5);
+  margin-bottom: var(--space-2);
+}
+
+.legal-page p {
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-4);
+}
+
+.legal-page a {
+  color: var(--accent);
+}
+
+.legal-list {
+  margin: 0 0 var(--space-4);
+  padding-left: var(--space-5);
+}
+
+.legal-list li {
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.legal-placeholder {
+  font-style: italic;
+  color: var(--text-faint) !important;
+}
+
 @media (max-width: 760px) {
   .landing-hero h1 {
     font-size: 32px;
