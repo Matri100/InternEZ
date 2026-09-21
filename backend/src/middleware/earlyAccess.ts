@@ -20,10 +20,9 @@ export function checkEarlyAccessKey(submitted: string): boolean {
   return timingSafeEqual(a, b);
 }
 
-// No dependency on express-session or cookie-parser — this is the one
-// cookie in the app not going through either, on purpose, so it can't be
-// touched by session.regenerate() (see routes/auth.ts's history) and
-// doesn't need a new package for what's a two-line parse.
+// Its own cookie, not express-session's — stays untouched by
+// session.regenerate() on login, and a plain Cookie-header parse doesn't
+// need cookie-parser as a dependency for one value.
 export function getEarlyAccessCookie(req: Request): string | null {
   const header = req.headers.cookie;
   if (!header) return null;
@@ -41,13 +40,6 @@ export function getEarlyAccessCookie(req: Request): string | null {
   return null;
 }
 
-// Tried sessionStorage first (per-tab, but unreliable on mobile — iOS
-// Safari can clear a backgrounded tab's sessionStorage when switching
-// apps), then localStorage with an expiry (more reliable, but still not
-// what browsers actually build for this). A cookie is the mechanism
-// mobile browsers are careful not to break on backgrounding, which is
-// exactly the problem this exists to solve — same 24h expiry as before,
-// just via Max-Age instead of a value the frontend has to track itself.
 export function requireEarlyAccess(req: Request, res: Response, next: NextFunction) {
   if (!isEarlyAccessEnabled()) {
     next();
