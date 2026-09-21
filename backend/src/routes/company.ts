@@ -10,6 +10,7 @@ import type {
 } from "../types/domain.js";
 import { EDUCATION_LEVEL_RANK } from "../data/reference.js";
 import { matchesSavedSearch } from "../services/savedSearch.js";
+import { detectListingLanguage } from "../services/language.js";
 import { writeLimiter } from "../middleware/rateLimit.js";
 
 export const companyRouter = Router();
@@ -61,8 +62,10 @@ companyRouter.put("/", async (req, res) => {
 // --- Listings owned by this company ---
 
 function parseListingInput(body: any): Omit<Listing, "id" | "companyId" | "createdAt"> {
+  const title = String(body.title ?? "");
+  const description = String(body.description ?? "");
   return {
-    title: String(body.title ?? ""),
+    title,
     location: String(body.location ?? ""),
     country: body.country ?? null,
     origin: "direct",
@@ -75,7 +78,11 @@ function parseListingInput(body: any): Omit<Listing, "id" | "companyId" | "creat
     endLabel: String(body.endLabel ?? ""),
     compensation: String(body.compensation ?? ""),
     applicationDeadline: String(body.applicationDeadline ?? ""),
-    description: String(body.description ?? ""),
+    description,
+    // Always derived server-side, regardless of anything the client sends
+    // — there's no form field for this (see PostListing.tsx), it's read
+    // straight from what the company actually typed.
+    language: detectListingLanguage(title, description),
     requirements: Array.isArray(body.requirements) ? body.requirements : [],
     skills: Array.isArray(body.skills) ? body.skills : [],
     targetFields: Array.isArray(body.targetFields) ? body.targetFields : [],

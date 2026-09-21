@@ -36,6 +36,10 @@ function emptyForm(): FormState {
     compensation: "",
     applicationDeadline: "",
     description: "",
+    // Overwritten server-side from title+description on save (see
+    // services/language.ts) — no form field for it, this default is only
+    // ever seen if the request somehow fails before that.
+    language: "English",
     requirements: [],
     skills: [],
     targetFields: [],

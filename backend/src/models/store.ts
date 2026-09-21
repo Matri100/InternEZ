@@ -128,6 +128,7 @@ function listingFromRow(row: any): Listing {
     compensation: row.compensation,
     applicationDeadline: row.application_deadline,
     description: row.description,
+    language: row.language,
     requirements: JSON.parse(row.requirements),
     skills: JSON.parse(row.skills),
     targetFields: JSON.parse(row.target_fields),
@@ -348,8 +349,8 @@ export const db = {
         id, company_id, created_at, title, location, country, origin, department, work_arrangement,
         required_education_level, duration, start_date, start_label, end_label, compensation,
         application_deadline, description, requirements, skills, target_fields, required_languages,
-        industries, preferred_qualifications, eligibility, extra_questions
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)`,
+        industries, preferred_qualifications, eligibility, extra_questions, language
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)`,
       listingParams(id, companyId, createdAt, input)
     );
     return (await db.getListing(id))!;
@@ -370,7 +371,7 @@ export const db = {
         application_deadline=$16, description=$17, requirements=$18,
         skills=$19, target_fields=$20, required_languages=$21,
         industries=$22, preferred_qualifications=$23, eligibility=$24,
-        extra_questions=$25
+        extra_questions=$25, language=$26
       WHERE id=$1`,
       listingParams(id, companyId, existing.createdAt, patch)
     );
@@ -1178,5 +1179,6 @@ function listingParams(id: string, companyId: string, createdAt: string, input: 
     JSON.stringify(input.preferredQualifications),
     JSON.stringify(input.eligibility),
     JSON.stringify(input.extraQuestions),
+    input.language,
   ];
 }

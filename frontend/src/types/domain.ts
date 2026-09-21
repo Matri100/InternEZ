@@ -192,6 +192,10 @@ export interface Listing {
   compensation: string;
   applicationDeadline: string;
   description: string;
+  // Detected server-side from title+description, not editable here — the
+  // language the posting itself is written in, distinct from
+  // requiredLanguages (a job requirement) below.
+  language: string;
   requirements: string[];
   skills: string[];
   targetFields: FieldOfStudy[];

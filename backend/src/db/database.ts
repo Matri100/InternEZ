@@ -118,6 +118,7 @@ await pool.query(`
     compensation TEXT NOT NULL DEFAULT '',
     application_deadline TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
+    language TEXT NOT NULL DEFAULT 'English',
     requirements TEXT NOT NULL DEFAULT '[]',
     skills TEXT NOT NULL DEFAULT '[]',
     target_fields TEXT NOT NULL DEFAULT '[]',
@@ -260,6 +261,12 @@ await pool.query(`
     created_at TEXT NOT NULL,
     responded_at TEXT
   );
+
+  -- Added after listings already existed in production, unlike everything
+  -- above — CREATE TABLE IF NOT EXISTS is a no-op against the live table,
+  -- so the column needs adding explicitly. ADD COLUMN IF NOT EXISTS makes
+  -- this safe to run on every boot, same as the CREATE statements above.
+  ALTER TABLE listings ADD COLUMN IF NOT EXISTS language TEXT NOT NULL DEFAULT 'English';
 
   CREATE INDEX IF NOT EXISTS idx_listings_company ON listings(company_id);
   CREATE INDEX IF NOT EXISTS idx_applications_applicant ON applications(applicant_id);

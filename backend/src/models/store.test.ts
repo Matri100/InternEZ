@@ -49,6 +49,7 @@ function listingInput(overrides: Partial<Omit<Listing, "id" | "companyId" | "cre
     compensation: "",
     applicationDeadline: "",
     description: "",
+    language: "English",
     requirements: [],
     skills: [],
     targetFields: [],

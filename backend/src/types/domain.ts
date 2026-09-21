@@ -190,6 +190,12 @@ export interface Listing {
   compensation: string;
   applicationDeadline: string;
   description: string;
+  // Detected from title+description at write time (see services/language.ts),
+  // never client-supplied — one of LANGUAGES in data/reference.ts, or
+  // "English" as the safe default when the text's too short to call
+  // confidently. Distinct from requiredLanguages below: this is what
+  // language the posting itself is written in, not a job requirement.
+  language: string;
   requirements: string[];
   skills: string[];
   targetFields: FieldOfStudy[];

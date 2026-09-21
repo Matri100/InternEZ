@@ -62,7 +62,13 @@ export function ListingCard({
             {ELIGIBILITY_LABELS[listing.eligibilityResult.level]}
           </span>
 
-          {citizenOnlyLabel && <span className="citizens-only-badge">{citizenOnlyLabel}</span>}
+          {citizenOnlyLabel && <span className="listing-flag-badge">{citizenOnlyLabel}</span>}
+
+          {listing.language !== "English" && (
+            <span className="listing-flag-badge" title="Not translated — shown as posted">
+              Posted in {listing.language}
+            </span>
+          )}
 
           <button
             type="button"
