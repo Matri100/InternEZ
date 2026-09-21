@@ -1,14 +1,16 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { getStoredEarlyAccessKey, storeEarlyAccessKey } from "../lib/earlyAccess";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
 // Wraps the entire app (see App.tsx) — nothing else mounts, and no other
-// request fires, until a valid key is proven. Keyed off localStorage with
-// a 24h expiry (see lib/earlyAccess.ts) rather than a plain cookie or
-// sessionStorage — a cookie would never expire without extra work, and
-// sessionStorage turned out to be unreliable on mobile (iOS Safari can
-// clear a backgrounded tab's sessionStorage when switching apps).
+// request fires, until a valid key is proven. Backed by a cookie the
+// server sets on /unlock (24h, see routes/earlyAccess.ts) rather than
+// anything tracked here — tried sessionStorage (per-tab, but iOS Safari
+// can clear a backgrounded tab's copy when switching apps) and then
+// localStorage with a manual expiry before landing on a cookie, which is
+// the one mechanism mobile browsers are actually careful not to break on
+// backgrounding. credentials: "include" is doing the real work below;
+// there's nothing to read or store on this side any more.
 export function EarlyAccessGate({ children }: { children: ReactNode }) {
   const [granted, setGranted] = useState<boolean | null>(null);
   const [key, setKey] = useState("");
@@ -16,12 +18,7 @@ export function EarlyAccessGate({ children }: { children: ReactNode }) {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const stored = getStoredEarlyAccessKey();
-    if (!stored) {
-      setGranted(false);
-      return;
-    }
-    fetch(`${API_BASE}/early-access/status`, { headers: { "X-Early-Access-Key": stored } })
+    fetch(`${API_BASE}/early-access/status`, { credentials: "include" })
       .then((res) => res.json())
       .then((data) => setGranted(Boolean(data.granted)))
       .catch(() => setGranted(false));
@@ -35,13 +32,13 @@ export function EarlyAccessGate({ children }: { children: ReactNode }) {
       const res = await fetch(`${API_BASE}/early-access/unlock`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ key }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? "Incorrect key");
       }
-      storeEarlyAccessKey(key);
       setGranted(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");

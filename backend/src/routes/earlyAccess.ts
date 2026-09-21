@@ -1,19 +1,24 @@
 import { Router } from "express";
 import { authLimiter } from "../middleware/rateLimit.js";
-import { checkEarlyAccessKey, isEarlyAccessEnabled } from "../middleware/earlyAccess.js";
+import {
+  EARLY_ACCESS_COOKIE,
+  EARLY_ACCESS_COOKIE_MAX_AGE_MS,
+  checkEarlyAccessKey,
+  getEarlyAccessCookie,
+  isEarlyAccessEnabled,
+} from "../middleware/earlyAccess.js";
 
 export const earlyAccessRouter = Router();
 
-// Called on mount with whatever key (if any) the frontend still has in
-// sessionStorage from earlier in this tab's life — rate limited since,
-// unlike before, this now validates a submitted key too and is just as
-// guessable as /unlock otherwise.
+// Re-checked on mount against whatever cookie is already there (if any) —
+// rate limited since, like /unlock, it's validating a submitted value and
+// is just as guessable otherwise.
 earlyAccessRouter.get("/status", authLimiter, (req, res) => {
   if (!isEarlyAccessEnabled()) {
     res.json({ granted: true });
     return;
   }
-  const provided = req.header("x-early-access-key");
+  const provided = getEarlyAccessCookie(req);
   res.json({ granted: typeof provided === "string" && checkEarlyAccessKey(provided) });
 });
 
@@ -23,5 +28,16 @@ earlyAccessRouter.post("/unlock", authLimiter, (req, res) => {
     res.status(401).json({ error: "Incorrect key" });
     return;
   }
+  // httpOnly (not readable via JS — the frontend doesn't need to, the
+  // browser just resends it), sameSite: lax (internez.eu and
+  // api.internez.eu are sibling subdomains of the same registrable
+  // domain, so this is "same-site" for cookie purposes despite being
+  // cross-origin — see index.ts's login cookie for the same reasoning).
+  res.cookie(EARLY_ACCESS_COOKIE, key, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: EARLY_ACCESS_COOKIE_MAX_AGE_MS,
+  });
   res.json({ granted: true });
 });
