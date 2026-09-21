@@ -2035,253 +2035,209 @@ fieldset {
   border-top: 1px solid var(--border);
 }
 
-/* Early access gate — a deliberate one-off, not the site's own design
-   system. This is the only screen in the app meant to look like a
-   classified dossier rather than the institutional theme everything else
-   uses: redaction bars, a rubber-stamp mark, corner brackets, scanlines,
-   a phosphor-amber terminal input. Every class here is scoped to this
-   page and shares nothing with .btn/.input/.field on purpose. */
+/* Early access gate — built from the site's own tokens (--bg/--surface/
+   --border/--accent/--steel, --font-serif/--sans/--mono), not a separate
+   palette or a borrowed trope. Distinctive through composition instead:
+   a drawing-sheet frame with zone reference marks, and a title block —
+   both real engineering-document conventions, not stylized decoration.
+   Shares nothing with .btn/.input/.field on purpose; everything here is
+   sized and drawn for this one screen. */
 .gate-page {
-  --cz-bg: #08090b;
-  --cz-paper: #101215;
-  --cz-line: #2a2e33;
-  --cz-bone: #d8d3c4;
-  --cz-bone-dim: #8b8779;
-  --cz-amber: #e8a33d;
-  --cz-amber-dim: #a97429;
-  --cz-red: #9a2b2b;
-
   min-height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-5);
-  background: var(--cz-bg);
-  color: var(--cz-bone);
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  padding: var(--space-6);
+  background: var(--bg);
   position: relative;
-  overflow: hidden;
 }
 
-/* CRT scanlines, fixed over the whole page, purely decorative. */
-.gate-page::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0.025) 0px,
-    rgba(255, 255, 255, 0.025) 1px,
-    transparent 1px,
-    transparent 3px
-  );
+.gate-frame {
+  position: fixed;
+  inset: 18px;
+  border: 1px solid var(--border);
   pointer-events: none;
+  z-index: 0;
+}
+.gate-zone-top,
+.gate-zone-bottom {
+  position: absolute;
+  left: var(--space-6);
+  right: var(--space-6);
+  display: flex;
+  justify-content: space-between;
+}
+.gate-zone-top {
+  top: -7px;
+}
+.gate-zone-bottom {
+  bottom: -7px;
+}
+.gate-zone-left,
+.gate-zone-right {
+  position: absolute;
+  top: var(--space-6);
+  bottom: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.gate-zone-left {
+  left: -7px;
+}
+.gate-zone-right {
+  right: -7px;
+}
+.gate-frame span {
+  background: var(--bg);
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1;
+  padding: 2px;
+  text-align: center;
 }
 
-.gate-doc {
+.gate-panel {
   position: relative;
+  z-index: 1;
   width: 100%;
-  max-width: 460px;
-  background: var(--cz-paper);
-  border: 1px solid var(--cz-line);
+  max-width: 480px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
+}
+
+.gate-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border);
+}
+
+.gate-classification {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.gate-body {
   padding: var(--space-6) var(--space-5) var(--space-5);
 }
 
-/* HUD-style corner brackets — the one place this page borrows a
-   "restricted access panel" visual instead of a plain bordered card. */
-.gate-doc::before,
-.gate-doc::after,
-.gate-corner-br,
-.gate-corner-bl {
-  content: "";
-  position: absolute;
-  width: 16px;
-  height: 16px;
-  border-color: var(--cz-amber-dim);
-}
-.gate-doc::before {
-  top: -1px;
-  left: -1px;
-  border-top: 2px solid var(--cz-amber-dim);
-  border-left: 2px solid var(--cz-amber-dim);
-}
-.gate-doc::after {
-  top: -1px;
-  right: -1px;
-  border-top: 2px solid var(--cz-amber-dim);
-  border-right: 2px solid var(--cz-amber-dim);
-}
-.gate-corner-bl {
-  bottom: -1px;
-  left: -1px;
-  border-bottom: 2px solid var(--cz-amber-dim);
-  border-left: 2px solid var(--cz-amber-dim);
-}
-.gate-corner-br {
-  bottom: -1px;
-  right: -1px;
-  border-bottom: 2px solid var(--cz-amber-dim);
-  border-right: 2px solid var(--cz-amber-dim);
-}
-
-.gate-doc-header {
-  display: flex;
-  justify-content: space-between;
-  font-size: 10.5px;
-  letter-spacing: 0.1em;
-  color: var(--cz-bone-dim);
-  padding-bottom: var(--space-3);
-  margin-bottom: var(--space-5);
-  border-bottom: 1px dashed var(--cz-line);
-}
-.gate-doc-header b {
-  color: var(--cz-red);
-  font-weight: 700;
-}
-
-/* A rubber-stamp mark, rotated like it was pressed onto the page
-   slightly off-true. */
-.gate-stamp {
-  position: absolute;
-  top: 96px;
-  right: -16px;
-  font-family: "Space Mono", monospace;
-  font-weight: 700;
-  font-size: 12px;
-  letter-spacing: 0.18em;
-  color: var(--cz-red);
-  border: 2px solid var(--cz-red);
-  padding: 3px 8px;
-  transform: rotate(9deg);
-  opacity: 0.75;
-  mix-blend-mode: screen;
-}
-
-/* Blacked-out lines, standing in for the rest of a document you're not
-   cleared to read. */
-.gate-redactions {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  margin-bottom: var(--space-5);
-}
-.gate-redactions span {
-  display: block;
-  height: 9px;
-  background: var(--cz-line);
-}
-
-.gate-title {
-  font-family: "Space Mono", monospace;
-  font-weight: 700;
+.gate-panel h1 {
+  font-family: var(--font-serif);
   font-size: 23px;
-  letter-spacing: 0.01em;
-  color: var(--cz-bone);
-  margin: 0 0 var(--space-4);
-}
-.gate-title .cursor {
-  display: inline-block;
-  color: var(--cz-amber);
-  animation: gate-blink 1.1s steps(1) infinite;
-}
-@keyframes gate-blink {
-  0%, 49% { opacity: 1; }
-  50%, 100% { opacity: 0; }
+  line-height: 1.3;
+  margin: 0 0 var(--space-3);
 }
 
 .gate-copy {
-  font-size: 13px;
-  line-height: 1.7;
-  color: var(--cz-bone-dim);
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text-secondary);
   margin: 0 0 var(--space-5);
+  max-width: 42ch;
 }
 
 .gate-field-label {
   display: block;
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  color: var(--cz-amber-dim);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
   margin-bottom: var(--space-2);
 }
 
-.gate-input-row {
-  display: flex;
-  align-items: stretch;
-  border: 1px solid var(--cz-line);
-  background: #000;
+.gate-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 11px var(--space-3);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--text);
   margin-bottom: var(--space-4);
 }
-.gate-input-row:focus-within {
-  border-color: var(--cz-amber);
-  box-shadow: 0 0 0 1px var(--cz-amber), 0 0 12px rgba(232, 163, 61, 0.25);
-}
-.gate-prompt {
-  display: flex;
-  align-items: center;
-  padding: 0 var(--space-3);
-  color: var(--cz-amber);
-  font-weight: 700;
-  user-select: none;
-}
-.gate-input {
-  flex: 1;
-  min-width: 0;
-  background: transparent;
-  border: none;
+.gate-input:focus {
   outline: none;
-  padding: 12px var(--space-3) 12px 0;
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 15px;
-  letter-spacing: 0.08em;
-  color: var(--cz-amber);
-}
-.gate-input::placeholder {
-  color: var(--cz-line);
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
 }
 
 .gate-error {
-  font-size: 12px;
-  letter-spacing: 0.04em;
-  color: var(--cz-red);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--blocked);
   margin: -8px 0 var(--space-4);
-}
-.gate-error b {
-  color: var(--cz-red);
 }
 
 .gate-submit {
   width: 100%;
-  background: transparent;
-  border: 1px solid var(--cz-amber-dim);
-  color: var(--cz-amber);
-  font-family: "Space Mono", monospace;
-  font-weight: 700;
-  font-size: 13px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  padding: 12px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 11px;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 13.5px;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease;
 }
 .gate-submit:hover:not(:disabled) {
-  background: var(--cz-amber);
-  color: #100b02;
+  background: var(--accent-ink);
 }
 .gate-submit:disabled {
   opacity: 0.5;
   cursor: default;
 }
 
-.gate-doc-footer {
-  margin-top: var(--space-5);
-  padding-top: var(--space-3);
-  border-top: 1px dashed var(--cz-line);
-  font-size: 10px;
+.gate-titleblock {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid var(--border);
+}
+.gate-titleblock-cell {
+  padding: var(--space-3) var(--space-4);
+  border-right: 1px solid var(--border);
+}
+.gate-titleblock-cell:last-child {
+  border-right: none;
+}
+.gate-titleblock-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
   letter-spacing: 0.08em;
-  color: var(--cz-bone-dim);
-  opacity: 0.7;
-  display: flex;
-  justify-content: space-between;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 3px;
+}
+.gate-titleblock-value {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 560px) {
+  .gate-frame {
+    display: none;
+  }
+  .gate-titleblock {
+    grid-template-columns: 1fr 1fr;
+  }
+  .gate-titleblock-cell:nth-child(2) {
+    border-right: none;
+  }
 }
 
 @media (max-width: 860px) {
