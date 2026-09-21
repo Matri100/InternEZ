@@ -2038,7 +2038,9 @@ fieldset {
 /* Early access gate — kept deliberately minimal on request: the key
    input and a button, nothing else competing for attention. Still built
    from the site's own tokens (--bg/--accent/--border/--font-sans), just
-   with almost everything else stripped back out. */
+   with almost everything else stripped back out. Strict black and white
+   on this one page — overrides the wordmark's usual steel-tinted second
+   syllable and the sitewide (blue) accent, on purpose. */
 .gate-page {
   min-height: 100%;
   display: flex;
@@ -2057,9 +2059,6 @@ fieldset {
   gap: var(--space-5);
 }
 
-/* Strict black and white on this one page — overrides the wordmark's
-   usual steel-tinted second syllable and the sitewide (blue) accent, on
-   purpose, rather than reusing --accent/--steel-ink here. */
 .gate-panel .wordmark {
   font-size: 14px;
 }
