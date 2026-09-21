@@ -1099,12 +1099,11 @@ fieldset {
 .eligibility-badge.review { border-left-color: var(--review); }
 .eligibility-badge.blocked { border-left-color: var(--blocked); }
 
-/* Same formula again — informational, not a pass/fail signal, so it
-   takes the neutral "steel" accent rather than one of the status
-   colors above. Text over a flag icon on purpose: a flag names a
-   country, not a language, and English/German/French each have more
-   than one — exactly the kind of ambiguity this app avoids elsewhere. */
-.language-badge {
+/* Same formula again. Neutral "steel" accent rather than one of the
+   status colors above — this is a fact about the listing (citizen-only
+   or not), not a personalized verdict, so it shouldn't read as an alarm
+   the way the (applicant-specific) eligibility badge's amber/red does. */
+.citizens-only-badge {
   display: inline-flex;
   align-items: center;
   font-size: 11.5px;
