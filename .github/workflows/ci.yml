@@ -39,6 +39,13 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm test
+      # Informational for now, not blocking — see the two known findings
+      # (dev-only vite/esbuild chain, react-router-dom) tracked to be
+      # resolved as their own dedicated, tested upgrades rather than forced
+      # through here. Once those land, drop continue-on-error to make this
+      # a real gate.
+      - run: npm audit --audit-level=high
+        continue-on-error: true
 
   frontend:
     runs-on: ubuntu-latest
@@ -54,6 +61,8 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run build
+      - run: npm audit --audit-level=high
+        continue-on-error: true
 
   extension:
     runs-on: ubuntu-latest
@@ -69,3 +78,5 @@ jobs:
           cache-dependency-path: extension/package-lock.json
       - run: npm ci
       - run: npm test
+      - run: npm audit --audit-level=high
+        continue-on-error: true
