@@ -23,7 +23,7 @@ import type {
   UserRole,
   VoluntaryDisclosures,
 } from "../types/domain";
-import { EARLY_ACCESS_STORAGE_KEY, getStoredEarlyAccessKey } from "../lib/earlyAccess";
+import { clearStoredEarlyAccessKey, getStoredEarlyAccessKey } from "../lib/earlyAccess";
 
 // In dev, relative "/api" works because Vite's dev server proxies it to
 // the local backend (see vite.config.ts). Once the frontend is a static
@@ -58,11 +58,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (res.status === 403) {
     const body = await res.json().catch(() => ({}));
     if (body.earlyAccessRequired) {
-      try {
-        sessionStorage.removeItem(EARLY_ACCESS_STORAGE_KEY);
-      } catch {
-        // ignore — reload still sends them back through the gate
-      }
+      clearStoredEarlyAccessKey();
       window.location.reload();
       return new Promise<T>(() => {});
     }

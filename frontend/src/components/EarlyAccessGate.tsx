@@ -1,23 +1,14 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { EARLY_ACCESS_STORAGE_KEY, getStoredEarlyAccessKey } from "../lib/earlyAccess";
+import { getStoredEarlyAccessKey, storeEarlyAccessKey } from "../lib/earlyAccess";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
-function storeEarlyAccessKey(value: string) {
-  try {
-    sessionStorage.setItem(EARLY_ACCESS_STORAGE_KEY, value);
-  } catch {
-    // sessionStorage can throw (private browsing, blocked storage) — the
-    // key still works for this request, it just won't survive a reload.
-  }
-}
-
 // Wraps the entire app (see App.tsx) — nothing else mounts, and no other
-// request fires, until a valid key is proven. Deliberately keyed off
-// sessionStorage, not a cookie: a cookie would be shared across every tab
-// in the browser and would silently skip the gate on a new tab, which is
-// exactly the persistence this was asked not to have. sessionStorage dies
-// with the tab, so a new tab (or a reopened browser) always asks again.
+// request fires, until a valid key is proven. Keyed off localStorage with
+// a 24h expiry (see lib/earlyAccess.ts) rather than a plain cookie or
+// sessionStorage — a cookie would never expire without extra work, and
+// sessionStorage turned out to be unreliable on mobile (iOS Safari can
+// clear a backgrounded tab's sessionStorage when switching apps).
 export function EarlyAccessGate({ children }: { children: ReactNode }) {
   const [granted, setGranted] = useState<boolean | null>(null);
   const [key, setKey] = useState("");
