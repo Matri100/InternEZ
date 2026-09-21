@@ -24,6 +24,7 @@ import { CompanyApplicants } from "./pages/CompanyApplicants";
 import { TalentBrowse } from "./pages/TalentBrowse";
 import { CompanyAnalytics } from "./pages/CompanyAnalytics";
 import { NotificationBell } from "./components/NotificationBell";
+import { EarlyAccessGate } from "./components/EarlyAccessGate";
 import { LogOutIcon, MoonIcon, SunIcon } from "./components/icons";
 
 function PageLoading() {
@@ -159,39 +160,41 @@ function AppLayout() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/terms" element={<Terms />} />
-        <Route path="/privacy" element={<Privacy />} />
+    <EarlyAccessGate>
+      <AuthProvider>
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
 
-        <Route element={<AppLayout />}>
-          <Route element={<RequireApplicant />}>
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/profile/resume" element={<ResumeView />} />
-            <Route path="/browse" element={<Browse />} />
-            <Route path="/listings/:id" element={<ListingDetail />} />
-            <Route path="/saved" element={<Saved />} />
-            <Route path="/applications" element={<Applications />} />
-          </Route>
+          <Route element={<AppLayout />}>
+            <Route element={<RequireApplicant />}>
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/profile/resume" element={<ResumeView />} />
+              <Route path="/browse" element={<Browse />} />
+              <Route path="/listings/:id" element={<ListingDetail />} />
+              <Route path="/saved" element={<Saved />} />
+              <Route path="/applications" element={<Applications />} />
+            </Route>
 
-          <Route element={<RequireCompany />}>
-            <Route path="/company" element={<CompanyProfile />} />
-            <Route path="/company/listings" element={<CompanyDashboard />} />
-            <Route path="/company/listings/new" element={<PostListing />} />
-            <Route path="/company/listings/:id/edit" element={<PostListing />} />
-            <Route path="/company/applicants" element={<CompanyApplicants />} />
-            <Route path="/company/talent" element={<TalentBrowse />} />
-            <Route path="/company/analytics" element={<CompanyAnalytics />} />
-          </Route>
+            <Route element={<RequireCompany />}>
+              <Route path="/company" element={<CompanyProfile />} />
+              <Route path="/company/listings" element={<CompanyDashboard />} />
+              <Route path="/company/listings/new" element={<PostListing />} />
+              <Route path="/company/listings/:id/edit" element={<PostListing />} />
+              <Route path="/company/applicants" element={<CompanyApplicants />} />
+              <Route path="/company/talent" element={<TalentBrowse />} />
+              <Route path="/company/analytics" element={<CompanyAnalytics />} />
+            </Route>
 
-          <Route element={<RequireAuth />}>
-            <Route path="/messages" element={<Messages />} />
+            <Route element={<RequireAuth />}>
+              <Route path="/messages" element={<Messages />} />
+            </Route>
           </Route>
-        </Route>
-      </Routes>
-    </AuthProvider>
+        </Routes>
+      </AuthProvider>
+    </EarlyAccessGate>
   );
 }

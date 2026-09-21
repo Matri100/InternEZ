@@ -13,7 +13,9 @@ import { companyRouter } from "./routes/company.js";
 import { messagesRouter } from "./routes/messages.js";
 import { notificationsRouter } from "./routes/notifications.js";
 import { autofillRouter } from "./routes/autofill.js";
+import { earlyAccessRouter } from "./routes/earlyAccess.js";
 import { requireApplicant, requireCompany, requireAuth } from "./middleware/auth.js";
+import { requireEarlyAccess } from "./middleware/earlyAccess.js";
 
 const app = express();
 const PORT = process.env.PORT ? Number(process.env.PORT) : 4000;
@@ -76,6 +78,14 @@ app.use(
 );
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
+
+// Everything below requires the early access key when EARLY_ACCESS_KEY is
+// set (see middleware/earlyAccess.ts) — /health stays reachable above this
+// line so infra checks keep working, and /early-access itself is mounted
+// before the gate since it's how you pass it.
+app.use("/api/early-access", earlyAccessRouter);
+app.use(requireEarlyAccess);
+
 app.use("/api/auth", authRouter);
 app.use("/api/reference", referenceRouter);
 app.use("/api/profile", requireApplicant, profileRouter);
