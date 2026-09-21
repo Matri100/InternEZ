@@ -44,6 +44,12 @@ export function ListingCard({
             {ELIGIBILITY_LABELS[listing.eligibilityResult.level]}
           </span>
 
+          {listing.requiredLanguages.map((l) => (
+            <span className="language-badge" key={l.language}>
+              {l.language} — {l.minLevel}
+            </span>
+          ))}
+
           <button
             type="button"
             className={`save-btn ${listing.saved ? "saved" : ""}`}
