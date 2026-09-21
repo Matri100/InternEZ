@@ -52,35 +52,65 @@ export function EarlyAccessGate({ children }: { children: ReactNode }) {
 
   if (!granted) {
     return (
-      <div className="auth-page">
-        <span className="wordmark">
-          Intern<span>EZ</span>
-        </span>
-        <div className="auth-card form-section">
-          <p className="eyebrow">Early access</p>
-          <h1 style={{ marginBottom: 8 }}>Enter your access key</h1>
-          <p className="field-hint" style={{ marginBottom: 20 }}>
-            InternEZ is in private early access. If you don't have a key, ask whoever invited you.
+      <div className="gate-page">
+        <div className="gate-doc">
+          <span className="gate-corner-bl" />
+          <span className="gate-corner-br" />
+          <div className="gate-stamp">RESTRICTED</div>
+
+          <div className="gate-doc-header">
+            <span>
+              CLASS: <b>PRE-LAUNCH</b>
+            </span>
+            <span>DIST: LIMITED</span>
+          </div>
+
+          <div className="gate-redactions" aria-hidden="true">
+            <span style={{ width: "72%" }} />
+            <span style={{ width: "91%" }} />
+            <span style={{ width: "48%" }} />
+          </div>
+
+          <h1 className="gate-title">
+            INTERNEZ<span className="cursor">_</span>
+          </h1>
+          <p className="gate-copy">
+            This build is not for general distribution. If you've been issued a clearance key, enter it below to
+            proceed.
           </p>
+
           <form onSubmit={handleSubmit}>
-            <div className="field">
-              <label htmlFor="early-access-key">Access key</label>
+            <label htmlFor="early-access-key" className="gate-field-label">
+              CLEARANCE KEY
+            </label>
+            <div className="gate-input-row">
+              <span className="gate-prompt">&gt;</span>
               <input
                 id="early-access-key"
                 type="password"
-                className="input"
+                className="gate-input"
                 value={key}
                 onChange={(e) => setKey(e.target.value)}
                 autoComplete="off"
                 autoFocus
                 required
+                placeholder="••••••••"
               />
             </div>
-            {error && <p style={{ color: "var(--blocked)", fontSize: 13, marginBottom: 16 }}>{error}</p>}
-            <button type="submit" className="btn btn-primary" style={{ width: "100%" }} disabled={submitting}>
-              {submitting ? "Checking…" : "Enter"}
+            {error && (
+              <p className="gate-error">
+                <b>ACCESS DENIED</b> — {error}
+              </p>
+            )}
+            <button type="submit" className="gate-submit" disabled={submitting}>
+              {submitting ? "Verifying…" : "Authenticate"}
             </button>
           </form>
+
+          <div className="gate-doc-footer">
+            <span>DOC-REF: IEZ-EA-004</span>
+            <span>CLEARANCE: PARTNER</span>
+          </div>
         </div>
       </div>
     );

@@ -9,3 +9,8 @@ dist/
 .env
 .env.*
 !.env.example
+# Not a secret — VITE_-prefixed vars are always baked into the public JS
+# bundle regardless. Committed so a manual `npm run build` always produces
+# the right production build without anyone needing to remember to set it
+# by hand (see frontend/.env.production).
+!frontend/.env.production
