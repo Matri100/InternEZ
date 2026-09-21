@@ -1,12 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { timingSafeEqual } from "node:crypto";
 
-declare module "express-session" {
-  interface SessionData {
-    earlyAccessGranted?: boolean;
-  }
-}
-
 // Empty/unset key means the gate is off entirely — the default for local
 // dev and for whenever the site is ready to be public. Setting
 // EARLY_ACCESS_KEY in production turns it on with no code change.
@@ -23,14 +17,20 @@ export function checkEarlyAccessKey(submitted: string): boolean {
   return timingSafeEqual(a, b);
 }
 
-// Applied globally ahead of every route except /api/health and
-// /api/early-access itself (see index.ts) — a shared key gating the whole
-// app while it's not meant to be publicly visible yet, not a per-user
-// permission. Session-backed like login, so a partner who's entered it once
-// stays in for the life of the cookie (30 days) instead of re-entering it
-// every visit.
+// Deliberately stateless — no session, no cookie. The frontend resends the
+// key itself as a header on every request (see api/client.ts), stored in
+// sessionStorage rather than a cookie, specifically so a new tab or a
+// closed-and-reopened browser has nothing to inherit and has to enter the
+// key again. A cookie-backed "stay unlocked" flag was tried first and
+// rejected — cookies are shared across every tab in a browser, which is
+// exactly the persistence this was asked not to have.
 export function requireEarlyAccess(req: Request, res: Response, next: NextFunction) {
-  if (!isEarlyAccessEnabled() || req.session.earlyAccessGranted) {
+  if (!isEarlyAccessEnabled()) {
+    next();
+    return;
+  }
+  const provided = req.header("x-early-access-key");
+  if (typeof provided === "string" && checkEarlyAccessKey(provided)) {
     next();
     return;
   }

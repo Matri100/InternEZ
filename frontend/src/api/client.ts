@@ -23,6 +23,7 @@ import type {
   UserRole,
   VoluntaryDisclosures,
 } from "../types/domain";
+import { EARLY_ACCESS_STORAGE_KEY, getStoredEarlyAccessKey } from "../lib/earlyAccess";
 
 // In dev, relative "/api" works because Vite's dev server proxies it to
 // the local backend (see vite.config.ts). Once the frontend is a static
@@ -33,8 +34,12 @@ import type {
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const earlyAccessKey = getStoredEarlyAccessKey();
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(earlyAccessKey ? { "X-Early-Access-Key": earlyAccessKey } : {}),
+    },
     credentials: "include",
     ...init,
   });
@@ -45,6 +50,23 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (res.status === 401 && !path.startsWith("/auth/")) {
     window.location.href = "/login";
     return new Promise<T>(() => {});
+  }
+  // The stored early-access key stopped working mid-session (rotated, or
+  // this tab's copy is stale some other way) — clearing it and reloading
+  // sends the user back through EarlyAccessGate cleanly instead of leaving
+  // every request on the page failing silently.
+  if (res.status === 403) {
+    const body = await res.json().catch(() => ({}));
+    if (body.earlyAccessRequired) {
+      try {
+        sessionStorage.removeItem(EARLY_ACCESS_STORAGE_KEY);
+      } catch {
+        // ignore — reload still sends them back through the gate
+      }
+      window.location.reload();
+      return new Promise<T>(() => {});
+    }
+    throw new Error(body.error ?? `Request failed: ${res.status}`);
   }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));

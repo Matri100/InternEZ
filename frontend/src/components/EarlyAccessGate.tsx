@@ -1,11 +1,23 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { EARLY_ACCESS_STORAGE_KEY, getStoredEarlyAccessKey } from "../lib/earlyAccess";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
+function storeEarlyAccessKey(value: string) {
+  try {
+    sessionStorage.setItem(EARLY_ACCESS_STORAGE_KEY, value);
+  } catch {
+    // sessionStorage can throw (private browsing, blocked storage) — the
+    // key still works for this request, it just won't survive a reload.
+  }
+}
+
 // Wraps the entire app (see App.tsx) — nothing else mounts, and no other
-// request fires, until the backend says this session has the early access
-// flag (see middleware/earlyAccess.ts). When EARLY_ACCESS_KEY isn't set on
-// the backend, /status reports granted immediately and this is invisible.
+// request fires, until a valid key is proven. Deliberately keyed off
+// sessionStorage, not a cookie: a cookie would be shared across every tab
+// in the browser and would silently skip the gate on a new tab, which is
+// exactly the persistence this was asked not to have. sessionStorage dies
+// with the tab, so a new tab (or a reopened browser) always asks again.
 export function EarlyAccessGate({ children }: { children: ReactNode }) {
   const [granted, setGranted] = useState<boolean | null>(null);
   const [key, setKey] = useState("");
@@ -13,7 +25,12 @@ export function EarlyAccessGate({ children }: { children: ReactNode }) {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    fetch(`${API_BASE}/early-access/status`, { credentials: "include" })
+    const stored = getStoredEarlyAccessKey();
+    if (!stored) {
+      setGranted(false);
+      return;
+    }
+    fetch(`${API_BASE}/early-access/status`, { headers: { "X-Early-Access-Key": stored } })
       .then((res) => res.json())
       .then((data) => setGranted(Boolean(data.granted)))
       .catch(() => setGranted(false));
@@ -27,13 +44,13 @@ export function EarlyAccessGate({ children }: { children: ReactNode }) {
       const res = await fetch(`${API_BASE}/early-access/unlock`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ key }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? "Incorrect key");
       }
+      storeEarlyAccessKey(key);
       setGranted(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -52,35 +69,65 @@ export function EarlyAccessGate({ children }: { children: ReactNode }) {
 
   if (!granted) {
     return (
-      <div className="auth-page">
-        <span className="wordmark">
-          Intern<span>EZ</span>
-        </span>
-        <div className="auth-card form-section">
-          <p className="eyebrow">Early access</p>
-          <h1 style={{ marginBottom: 8 }}>Enter your access key</h1>
-          <p className="field-hint" style={{ marginBottom: 20 }}>
-            InternEZ is in private early access. If you don't have a key, ask whoever invited you.
+      <div className="gate-page">
+        <div className="gate-doc">
+          <span className="gate-corner-bl" />
+          <span className="gate-corner-br" />
+          <div className="gate-stamp">RESTRICTED</div>
+
+          <div className="gate-doc-header">
+            <span>
+              CLASS: <b>PRE-LAUNCH</b>
+            </span>
+            <span>DIST: LIMITED</span>
+          </div>
+
+          <div className="gate-redactions" aria-hidden="true">
+            <span style={{ width: "72%" }} />
+            <span style={{ width: "91%" }} />
+            <span style={{ width: "48%" }} />
+          </div>
+
+          <h1 className="gate-title">
+            INTERNEZ<span className="cursor">_</span>
+          </h1>
+          <p className="gate-copy">
+            This build is not for general distribution. If you've been issued a clearance key, enter it below to
+            proceed.
           </p>
+
           <form onSubmit={handleSubmit}>
-            <div className="field">
-              <label htmlFor="early-access-key">Access key</label>
+            <label htmlFor="early-access-key" className="gate-field-label">
+              CLEARANCE KEY
+            </label>
+            <div className="gate-input-row">
+              <span className="gate-prompt">&gt;</span>
               <input
                 id="early-access-key"
                 type="password"
-                className="input"
+                className="gate-input"
                 value={key}
                 onChange={(e) => setKey(e.target.value)}
                 autoComplete="off"
                 autoFocus
                 required
+                placeholder="••••••••"
               />
             </div>
-            {error && <p style={{ color: "var(--blocked)", fontSize: 13, marginBottom: 16 }}>{error}</p>}
-            <button type="submit" className="btn btn-primary" style={{ width: "100%" }} disabled={submitting}>
-              {submitting ? "Checking…" : "Enter"}
+            {error && (
+              <p className="gate-error">
+                <b>ACCESS DENIED</b> — {error}
+              </p>
+            )}
+            <button type="submit" className="gate-submit" disabled={submitting}>
+              {submitting ? "Verifying…" : "Authenticate"}
             </button>
           </form>
+
+          <div className="gate-doc-footer">
+            <span>DOC-REF: IEZ-EA-004</span>
+            <span>CLEARANCE: PARTNER</span>
+          </div>
         </div>
       </div>
     );

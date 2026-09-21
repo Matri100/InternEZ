@@ -4,18 +4,24 @@ import { checkEarlyAccessKey, isEarlyAccessEnabled } from "../middleware/earlyAc
 
 export const earlyAccessRouter = Router();
 
-earlyAccessRouter.get("/status", (req, res) => {
-  res.json({ granted: !isEarlyAccessEnabled() || Boolean(req.session.earlyAccessGranted) });
+// Called on mount with whatever key (if any) the frontend still has in
+// sessionStorage from earlier in this tab's life — rate limited since,
+// unlike before, this now validates a submitted key too and is just as
+// guessable as /unlock otherwise.
+earlyAccessRouter.get("/status", authLimiter, (req, res) => {
+  if (!isEarlyAccessEnabled()) {
+    res.json({ granted: true });
+    return;
+  }
+  const provided = req.header("x-early-access-key");
+  res.json({ granted: typeof provided === "string" && checkEarlyAccessKey(provided) });
 });
 
-// Reuses authLimiter (10/15min) — a shared key handed to multiple partners
-// still shouldn't be brute-forceable.
 earlyAccessRouter.post("/unlock", authLimiter, (req, res) => {
   const { key } = req.body ?? {};
   if (typeof key !== "string" || !checkEarlyAccessKey(key)) {
     res.status(401).json({ error: "Incorrect key" });
     return;
   }
-  req.session.earlyAccessGranted = true;
   res.json({ granted: true });
 });

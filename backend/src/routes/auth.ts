@@ -86,11 +86,7 @@ authRouter.post("/signup", authLimiter, async (req, res) => {
   // (rather than just setting userId/role on whatever session already
   // exists) prevents session fixation — an attacker who got a victim to
   // adopt a known session ID before login can't inherit it after login,
-  // since login now issues a fresh one. regenerate() wipes the whole
-  // session though, so earlyAccessGranted has to be captured first and
-  // restored after — otherwise unlocking the gate then signing up
-  // silently re-locks every request that follows.
-  const hadEarlyAccess = req.session.earlyAccessGranted;
+  // since login now issues a fresh one.
   req.session.regenerate((err) => {
     if (err) {
       res.status(500).json({ error: "Something went wrong — please try again." });
@@ -98,7 +94,6 @@ authRouter.post("/signup", authLimiter, async (req, res) => {
     }
     req.session.userId = id;
     req.session.role = role;
-    if (hadEarlyAccess) req.session.earlyAccessGranted = true;
     const user: AuthUser = { id, email: normalizedEmail, role };
     res.status(201).json(user);
   });
@@ -120,10 +115,6 @@ authRouter.post("/login", authLimiter, async (req, res) => {
     return;
   }
 
-  // See the matching comment in /signup — regenerate() wipes
-  // earlyAccessGranted along with everything else, so it has to survive
-  // the trip explicitly.
-  const hadEarlyAccess = req.session.earlyAccessGranted;
   req.session.regenerate((err) => {
     if (err) {
       res.status(500).json({ error: "Something went wrong — please try again." });
@@ -131,7 +122,6 @@ authRouter.post("/login", authLimiter, async (req, res) => {
     }
     req.session.userId = stored.id;
     req.session.role = stored.role;
-    if (hadEarlyAccess) req.session.earlyAccessGranted = true;
     const user: AuthUser = { id: stored.id, email: stored.email, role: stored.role };
     res.json(user);
   });
