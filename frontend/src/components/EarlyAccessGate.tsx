@@ -1,5 +1,4 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { LockIcon } from "./icons";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
@@ -54,43 +53,63 @@ export function EarlyAccessGate({ children }: { children: ReactNode }) {
   if (!granted) {
     return (
       <div className="gate-page">
-        <header className="landing-header">
-          <div className="landing-header-inner" style={{ justifyContent: "center" }}>
-            <span className="wordmark">
-              Intern<span>EZ</span>
+        <div className="gate-doc">
+          <span className="gate-corner-bl" />
+          <span className="gate-corner-br" />
+          <div className="gate-stamp">RESTRICTED</div>
+
+          <div className="gate-doc-header">
+            <span>
+              CLASS: <b>PRE-LAUNCH</b>
             </span>
+            <span>DIST: LIMITED</span>
           </div>
-        </header>
-        <div className="gate-hero">
-          <div className="gate-card">
-            <div className="gate-kicker">
-              <LockIcon />
-              <span>Early access</span>
+
+          <div className="gate-redactions" aria-hidden="true">
+            <span style={{ width: "72%" }} />
+            <span style={{ width: "91%" }} />
+            <span style={{ width: "48%" }} />
+          </div>
+
+          <h1 className="gate-title">
+            INTERNEZ<span className="cursor">_</span>
+          </h1>
+          <p className="gate-copy">
+            This build is not for general distribution. If you've been issued a clearance key, enter it below to
+            proceed.
+          </p>
+
+          <form onSubmit={handleSubmit}>
+            <label htmlFor="early-access-key" className="gate-field-label">
+              CLEARANCE KEY
+            </label>
+            <div className="gate-input-row">
+              <span className="gate-prompt">&gt;</span>
+              <input
+                id="early-access-key"
+                type="password"
+                className="gate-input"
+                value={key}
+                onChange={(e) => setKey(e.target.value)}
+                autoComplete="off"
+                autoFocus
+                required
+                placeholder="••••••••"
+              />
             </div>
-            <h1>InternEZ isn't public yet.</h1>
-            <p className="gate-copy">
-              You're seeing this because the site is still in private early access. If someone gave you a key,
-              enter it below to continue.
-            </p>
-            <form onSubmit={handleSubmit}>
-              <div className="field">
-                <label htmlFor="early-access-key">Access key</label>
-                <input
-                  id="early-access-key"
-                  type="password"
-                  className="input"
-                  value={key}
-                  onChange={(e) => setKey(e.target.value)}
-                  autoComplete="off"
-                  autoFocus
-                  required
-                />
-              </div>
-              {error && <p style={{ color: "var(--blocked)", fontSize: 13, marginBottom: 16 }}>{error}</p>}
-              <button type="submit" className="btn btn-primary" style={{ width: "100%" }} disabled={submitting}>
-                {submitting ? "Checking…" : "Continue"}
-              </button>
-            </form>
+            {error && (
+              <p className="gate-error">
+                <b>ACCESS DENIED</b> — {error}
+              </p>
+            )}
+            <button type="submit" className="gate-submit" disabled={submitting}>
+              {submitting ? "Verifying…" : "Authenticate"}
+            </button>
+          </form>
+
+          <div className="gate-doc-footer">
+            <span>DOC-REF: IEZ-EA-004</span>
+            <span>CLEARANCE: PARTNER</span>
           </div>
         </div>
       </div>
