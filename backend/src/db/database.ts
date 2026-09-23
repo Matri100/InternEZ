@@ -57,6 +57,16 @@ await pool.query(`
     created_at TEXT NOT NULL
   );
 
+  -- token_hash, never the raw token, is what's stored — mirrors
+  -- password_hash: a DB leak shouldn't hand out usable reset links.
+  -- store.ts deletes any existing row for a user before inserting a new
+  -- one, so there's at most one live reset link per account at a time.
+  CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    token_hash TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id),
+    expires_at TEXT NOT NULL
+  );
+
   -- applicants/companies are not FK'd to users: every real account has a
   -- matching row (same id, created together at signup), but seeded company
   -- profiles exist without login access, so the relationship isn't enforced.
