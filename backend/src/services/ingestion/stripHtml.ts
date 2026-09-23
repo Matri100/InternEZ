@@ -30,6 +30,14 @@ export function stripHtml(html: string): string {
       // gets to "&amp;", not "&". A second pass is a no-op on text that
       // was only single-encoded, so this is safe either way.
 
+      // A <p> whose entire content is one <strong>/<b> wrapping nothing
+      // else is how job postings actually mark up a section header (e.g.
+      // "<p><strong>Background:</strong></p>", confirmed against real
+      // N26 content) — there's no <h1-6> involved at all. Tag that text
+      // with a **markdown-style** marker before the generic tag-strip
+      // below erases the distinction, so the frontend (Description.tsx)
+      // can render it as a real heading instead of an ordinary paragraph.
+      .replace(/<p[^>]*>\s*<(?:strong|b)[^>]*>([\s\S]*?)<\/(?:strong|b)>\s*<\/p>/gi, "<p>**$1**</p>")
       // Convert structure to line breaks before stripping tags, so a
       // paragraph/list becomes readable plain text instead of one run-on
       // sentence once the tags themselves are gone. Order matters: a list

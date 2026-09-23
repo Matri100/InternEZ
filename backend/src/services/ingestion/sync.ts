@@ -27,6 +27,21 @@ async function fetchFor(employer: SourcedEmployer): Promise<IngestedListing[]> {
   return fetchLeverPostings(employer.token);
 }
 
+// Google's favicon service — free, no API key, no account. It's a low-res
+// favicon rather than a real logo (Clearbit's old free logo API was
+// discontinued December 2025; its modern replacements, e.g. logo.dev, all
+// require creating an account for an API key, which nothing here can do
+// on anyone's behalf). Good enough to beat a bare-initials placeholder;
+// swap for a real logo API's URL pattern here if/when there's a key.
+function faviconUrl(website: string): string | null {
+  try {
+    const { hostname } = new URL(website);
+    return `https://www.google.com/s2/favicons?domain=${hostname}&sz=128`;
+  } catch {
+    return null;
+  }
+}
+
 function toListingInput(
   ingested: IngestedListing,
   country: NonNullable<ReturnType<typeof mapLocationToCountry>>
@@ -95,7 +110,7 @@ export async function syncEmployer(employer: SourcedEmployer): Promise<EmployerS
   await db.saveCompany(employer.key, {
     name: employer.name,
     verified: false, // sourced companies never self-declared this — see ListingOrigin
-    logoUrl: null,
+    logoUrl: faviconUrl(employer.website),
     description: "",
     website: employer.website,
     headquarters: null,

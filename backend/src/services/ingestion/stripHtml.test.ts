@@ -46,4 +46,21 @@ describe("stripHtml", () => {
   it("turns <br><br> into a paragraph break within otherwise-flowing text", () => {
     expect(stripHtml("<p>Line one.<br><br>Line two.</p>")).toBe("Line one.\n\nLine two.");
   });
+
+  it("marks a <p> that's entirely one <strong> as a heading, not an ordinary paragraph", () => {
+    // This is how real job postings actually mark section headers — there's
+    // no <h1-6> involved. Captured live: N26's real content has
+    // "<p><strong>Background:</strong></p>" as its own standalone
+    // paragraph. Marked with a **markdown-style** wrapper so the frontend
+    // can render it as a real heading instead of body text.
+    expect(stripHtml("<p><strong>Background:</strong></p><p>Some body text.</p>")).toBe(
+      "**Background:**\n\nSome body text."
+    );
+  });
+
+  it("does not treat a <strong> that shares its paragraph with other text as a heading", () => {
+    expect(stripHtml("<p>Hello <strong>world</strong>, how are you?</p>")).toBe(
+      "Hello world, how are you?"
+    );
+  });
 });
