@@ -74,6 +74,10 @@ export const api = {
   signup: (input: { email: string; password: string; role: UserRole; name: string }) =>
     request<AuthUser>("/auth/signup", { method: "POST", body: JSON.stringify(input) }),
   logout: () => request<void>("/auth/logout", { method: "POST" }),
+  forgotPassword: (email: string) =>
+    request<{ message: string }>("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) }),
+  resetPassword: (input: { token: string; password: string }) =>
+    request<{ message: string }>("/auth/reset-password", { method: "POST", body: JSON.stringify(input) }),
 
   getReference: () => request<ReferenceData>("/reference"),
   getUniversities: (country: string) =>
