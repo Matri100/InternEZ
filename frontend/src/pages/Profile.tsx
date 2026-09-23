@@ -307,11 +307,10 @@ export function Profile() {
               Add at least one entry — high school counts if that's where you are.
             </p>
           )}
-          {form.education.map((entry, i) => (
+          {form.education.map((entry) => (
             <EduEntryForm
               key={entry.id}
               entry={entry}
-              index={i}
               levels={reference.educationLevels}
               fieldGroups={reference.fieldGroups}
               regions={reference.regions}

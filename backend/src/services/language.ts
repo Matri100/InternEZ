@@ -1,5 +1,4 @@
 import { franc } from "franc";
-import { LANGUAGES } from "../data/reference.js";
 
 // franc's ISO 639-3 codes for the languages InternEZ actually offers
 // elsewhere (LANGUAGES in reference.ts, used for RequiredLanguage and an

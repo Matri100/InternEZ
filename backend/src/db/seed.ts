@@ -2,7 +2,6 @@
 // companies/listings every account can browse, plus two demo accounts
 // (one applicant, one company) so the app is fully explorable immediately
 // after a fresh install, without anyone having to sign up first.
-import { randomUUID } from "node:crypto";
 import { pool } from "./database.js";
 import { db } from "../models/store.js";
 import { hashPassword } from "../services/passwords.js";
