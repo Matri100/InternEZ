@@ -14,6 +14,7 @@ import { messagesRouter } from "./routes/messages.js";
 import { notificationsRouter } from "./routes/notifications.js";
 import { autofillRouter } from "./routes/autofill.js";
 import { earlyAccessRouter } from "./routes/earlyAccess.js";
+import { adminRouter } from "./routes/admin.js";
 import { requireApplicant, requireCompany, requireAuth } from "./middleware/auth.js";
 import { requireEarlyAccess } from "./middleware/earlyAccess.js";
 
@@ -78,6 +79,11 @@ app.use(
 );
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
+
+// Its own secret (SYNC_SECRET, see routes/admin.ts), not the early access
+// cookie — the caller is a script or a cron job, not a browser session, so
+// it's mounted above the gate alongside /health and /early-access.
+app.use("/api/admin", adminRouter);
 
 // Everything below requires the early access key when EARLY_ACCESS_KEY is
 // set (see middleware/earlyAccess.ts) — /health stays reachable above this
