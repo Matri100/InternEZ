@@ -23,4 +23,27 @@ describe("stripHtml", () => {
   it("does not leave a literal ampersand artifact from entity decoding order", () => {
     expect(stripHtml("Ben &amp; Jerry's")).toBe("Ben & Jerry's");
   });
+
+  it("decodes double-encoded entities (a literal & in the source text)", () => {
+    // Captured live from the same real N26 listing — "Risk & Compliance"
+    // in the original text comes through Greenhouse's API as
+    // "Risk &amp;amp; Compliance", not "Risk &amp; Compliance". One
+    // decode pass only gets to "&amp;", leaving a visible artifact.
+    expect(stripHtml("Risk &amp;amp; Compliance")).toBe("Risk & Compliance");
+  });
+
+  it("turns paragraphs into blank-line-separated blocks, not one run-on paragraph", () => {
+    expect(stripHtml("<p>First paragraph.</p><p>Second paragraph.</p>")).toBe(
+      "First paragraph.\n\nSecond paragraph."
+    );
+  });
+
+  it("turns a list into one bullet per line, not comma-free run-on text", () => {
+    const html = "<p>Intro.</p><ul><li>Item one</li><li>Item two</li></ul><p>Outro.</p>";
+    expect(stripHtml(html)).toBe("Intro.\n\n- Item one\n- Item two\n\nOutro.");
+  });
+
+  it("turns <br><br> into a paragraph break within otherwise-flowing text", () => {
+    expect(stripHtml("<p>Line one.<br><br>Line two.</p>")).toBe("Line one.\n\nLine two.");
+  });
 });

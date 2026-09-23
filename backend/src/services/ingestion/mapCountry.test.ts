@@ -19,6 +19,11 @@ describe("mapLocationToCountry", () => {
     expect(mapLocationToCountry("Dublin")).toBe("IE");
   });
 
+  it("resolves secondary French cities found live against real Doctolib listings", () => {
+    expect(mapLocationToCountry("Nantes")).toBe("FR");
+    expect(mapLocationToCountry("Strasbourg")).toBe("FR");
+  });
+
   it("resolves a bare 2-letter code that's a valid CountryCode", () => {
     expect(mapLocationToCountry("DE")).toBe("DE");
   });
