@@ -1,9 +1,11 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import type { ListingWithComputed } from "../types/domain";
 import { ELIGIBILITY_LABELS } from "./EligibilityFlag";
 import { CompanyLogo } from "./CompanyLogo";
 import { MetaRow } from "./MetaRow";
 import { BookmarkIcon } from "./icons";
+import { useReferenceData } from "../context/ReferenceData";
 
 export function ListingCard({
   listing,
@@ -14,6 +16,22 @@ export function ListingCard({
   onApply: () => void;
   onToggleSave: () => void;
 }) {
+  const { reference } = useReferenceData();
+  // Per-language "Danish — Fluent" tags were too much noise on a card meant
+  // to be scanned quickly, and mostly duplicated what the eligibility badge
+  // already says. citizenOnly is the sharper, rarer signal underneath it —
+  // a listing restricted to one country's citizens, which is exactly what
+  // a non-English posting usually implies. Named directly ("France citizens
+  // only") rather than a generic "closed to international" so a matching
+  // applicant can self-identify at a glance. The fuller language breakdown
+  // stays on the listing detail page for anyone who clicks in.
+  const citizenOnlyLabel = useMemo(() => {
+    const code = listing.eligibility.citizenOnly;
+    if (!code) return null;
+    const name = reference?.regions.flatMap((r) => r.countries).find((c) => c.code === code)?.name ?? code;
+    return `${name} citizens only`;
+  }, [listing.eligibility.citizenOnly, reference]);
+
   return (
     <div className="listing-card">
       <div className="listing-card-top">
@@ -44,11 +62,22 @@ export function ListingCard({
             {ELIGIBILITY_LABELS[listing.eligibilityResult.level]}
           </span>
 
-          {listing.requiredLanguages.map((l) => (
-            <span className="language-badge" key={l.language}>
-              {l.language} — {l.minLevel}
+          {citizenOnlyLabel && <span className="listing-flag-badge">{citizenOnlyLabel}</span>}
+
+          {listing.language !== "English" && (
+            <span className="listing-flag-badge" title="Not translated — shown as posted">
+              Posted in {listing.language}
             </span>
-          ))}
+          )}
+
+          {listing.origin === "sourced" && (
+            <span
+              className="listing-flag-badge"
+              title="Pulled from the employer's own hiring system — applying links out to their site"
+            >
+              External listing
+            </span>
+          )}
 
           <button
             type="button"

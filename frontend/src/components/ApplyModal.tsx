@@ -18,6 +18,12 @@ export function ApplyModal({ listing, onClose, onSubmitted }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const questions = listing.extraQuestions;
+  // A "sourced" listing's real hiring pipeline lives on the employer's own
+  // ATS, not InternEZ's — there's nothing here to submit an application
+  // into. Applying means linking out to the real page; the button below
+  // just records that the applicant went and did that (see
+  // createApplication's "appliedExternally" status in store.ts).
+  const isSourced = listing.origin === "sourced";
 
   useEffect(() => {
     if (questions.length === 0) return;
@@ -100,7 +106,24 @@ export function ApplyModal({ listing, onClose, onSubmitted }: Props) {
           </div>
         )}
 
-        {questions.length > 0 ? (
+        {isSourced ? (
+          <div>
+            <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 12 }}>
+              This listing comes from {listing.company.name}'s own hiring system — InternEZ doesn't have a
+              pipeline on our end for it. Apply directly on their site, then mark it as applied below so it
+              shows up in your Applications.
+            </p>
+            <a
+              href={listing.applyUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-secondary"
+              style={{ display: "inline-block" }}
+            >
+              Open application on {listing.company.name}'s site ↗
+            </a>
+          </div>
+        ) : questions.length > 0 ? (
           <div className="apply-questions">
             {questions.map((q) => (
               <div className="field" key={q.key}>
@@ -156,7 +179,7 @@ export function ApplyModal({ listing, onClose, onSubmitted }: Props) {
             Cancel
           </button>
           <button type="button" className="btn btn-primary" onClick={submit} disabled={submitting || !canSubmit}>
-            {submitting ? "Submitting…" : "Submit application"}
+            {submitting ? "Saving…" : isSourced ? "I've applied — mark as applied" : "Submit application"}
           </button>
         </div>
       </div>

@@ -36,6 +36,13 @@ function emptyForm(): FormState {
     compensation: "",
     applicationDeadline: "",
     description: "",
+    // Overwritten server-side from title+description on save (see
+    // services/language.ts) — no form field for it, this default is only
+    // ever seen if the request somehow fails before that.
+    language: "English",
+    // Only ever set for sourced (ingested) listings, never posted through
+    // this form — see services/ingestion/ on the backend.
+    applyUrl: "",
     requirements: [],
     skills: [],
     targetFields: [],
@@ -86,10 +93,6 @@ export function PostListing() {
 
   const fieldOptions = reference!.fieldGroups.map((g) => ({ category: g.category, options: g.fields }));
   const skillOptions = reference!.skillGroups.map((g) => ({ category: g.category, options: g.skills }));
-  const countryOptions = reference!.regions.map((region) => ({
-    category: region.name,
-    options: region.countries.map((c) => ({ value: c.code, label: c.name })),
-  }));
 
   async function save() {
     setSaving(true);

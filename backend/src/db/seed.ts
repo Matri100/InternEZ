@@ -2,10 +2,10 @@
 // companies/listings every account can browse, plus two demo accounts
 // (one applicant, one company) so the app is fully explorable immediately
 // after a fresh install, without anyone having to sign up first.
-import { randomUUID } from "node:crypto";
 import { pool } from "./database.js";
 import { db } from "../models/store.js";
 import { hashPassword } from "../services/passwords.js";
+import { detectListingLanguage } from "../services/language.js";
 import { companies, listings } from "../data/seed.js";
 import type { Applicant } from "../types/domain.js";
 
@@ -36,8 +36,8 @@ export async function seedIfEmpty(): Promise<void> {
       id, company_id, created_at, title, location, country, origin, department, work_arrangement,
       required_education_level, duration, start_date, start_label, end_label, compensation,
       application_deadline, description, requirements, skills, target_fields, required_languages,
-      industries, preferred_qualifications, eligibility, extra_questions
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)`;
+      industries, preferred_qualifications, eligibility, extra_questions, language, apply_url
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)`;
   for (const listing of listings) {
     await pool.query(insertListingSql, [
       listing.id,
@@ -65,6 +65,8 @@ export async function seedIfEmpty(): Promise<void> {
       JSON.stringify(listing.preferredQualifications),
       JSON.stringify(listing.eligibility),
       JSON.stringify(listing.extraQuestions),
+      detectListingLanguage(listing.title, listing.description),
+      listing.applyUrl,
     ]);
   }
 

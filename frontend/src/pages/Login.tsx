@@ -67,6 +67,12 @@ export function Login() {
             />
           </div>
 
+          <p style={{ textAlign: "right", marginBottom: 16 }}>
+            <Link to="/forgot-password" style={{ fontSize: 13 }}>
+              Forgot password?
+            </Link>
+          </p>
+
           {error && <p style={{ color: "var(--blocked)", fontSize: 13, marginBottom: 16 }}>{error}</p>}
 
           <button type="submit" className="btn btn-primary" style={{ width: "100%" }} disabled={submitting}>

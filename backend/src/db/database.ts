@@ -57,6 +57,16 @@ await pool.query(`
     created_at TEXT NOT NULL
   );
 
+  -- token_hash, never the raw token, is what's stored — mirrors
+  -- password_hash: a DB leak shouldn't hand out usable reset links.
+  -- store.ts deletes any existing row for a user before inserting a new
+  -- one, so there's at most one live reset link per account at a time.
+  CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    token_hash TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id),
+    expires_at TEXT NOT NULL
+  );
+
   -- applicants/companies are not FK'd to users: every real account has a
   -- matching row (same id, created together at signup), but seeded company
   -- profiles exist without login access, so the relationship isn't enforced.
@@ -118,6 +128,8 @@ await pool.query(`
     compensation TEXT NOT NULL DEFAULT '',
     application_deadline TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
+    language TEXT NOT NULL DEFAULT 'English',
+    apply_url TEXT NOT NULL DEFAULT '',
     requirements TEXT NOT NULL DEFAULT '[]',
     skills TEXT NOT NULL DEFAULT '[]',
     target_fields TEXT NOT NULL DEFAULT '[]',
@@ -260,6 +272,13 @@ await pool.query(`
     created_at TEXT NOT NULL,
     responded_at TEXT
   );
+
+  -- Added after listings already existed in production, unlike everything
+  -- above — CREATE TABLE IF NOT EXISTS is a no-op against the live table,
+  -- so the column needs adding explicitly. ADD COLUMN IF NOT EXISTS makes
+  -- this safe to run on every boot, same as the CREATE statements above.
+  ALTER TABLE listings ADD COLUMN IF NOT EXISTS language TEXT NOT NULL DEFAULT 'English';
+  ALTER TABLE listings ADD COLUMN IF NOT EXISTS apply_url TEXT NOT NULL DEFAULT '';
 
   CREATE INDEX IF NOT EXISTS idx_listings_company ON listings(company_id);
   CREATE INDEX IF NOT EXISTS idx_applications_applicant ON applications(applicant_id);
