@@ -7,7 +7,6 @@ const OTHER_UNIVERSITY = "Other (not listed)";
 
 interface Props {
   entry: EducationEntry;
-  index: number;
   levels: EducationLevel[];
   fieldGroups: FieldGroup[];
   regions: RegionDef[];
@@ -15,7 +14,7 @@ interface Props {
   onRemove: () => void;
 }
 
-export function EduEntryForm({ entry, index, levels, fieldGroups, regions, onChange, onRemove }: Props) {
+export function EduEntryForm({ entry, levels, fieldGroups, regions, onChange, onRemove }: Props) {
   const { universities: countryUniversities, loading } = useUniversities(entry.country);
   const options = entry.country ? [...countryUniversities, OTHER_UNIVERSITY] : [];
 

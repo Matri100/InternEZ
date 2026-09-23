@@ -90,10 +90,6 @@ export function PostListing() {
 
   const fieldOptions = reference!.fieldGroups.map((g) => ({ category: g.category, options: g.fields }));
   const skillOptions = reference!.skillGroups.map((g) => ({ category: g.category, options: g.skills }));
-  const countryOptions = reference!.regions.map((region) => ({
-    category: region.name,
-    options: region.countries.map((c) => ({ value: c.code, label: c.name })),
-  }));
 
   async function save() {
     setSaving(true);
