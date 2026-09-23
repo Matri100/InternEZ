@@ -227,6 +227,33 @@ export const db = {
     return rows[0] ? userFromRow(rows[0]) : null;
   },
 
+  async updateUserPassword(id: string, passwordHash: string): Promise<void> {
+    await pool.query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [passwordHash, id]);
+  },
+
+  // Deletes any existing token for this user first, so requesting a new
+  // reset link invalidates an earlier, possibly still-unread one rather
+  // than leaving multiple valid links outstanding.
+  async createPasswordResetToken(input: { userId: string; tokenHash: string; expiresAt: string }): Promise<void> {
+    await pool.query(`DELETE FROM password_reset_tokens WHERE user_id = $1`, [input.userId]);
+    await pool.query(
+      `INSERT INTO password_reset_tokens (token_hash, user_id, expires_at) VALUES ($1, $2, $3)`,
+      [input.tokenHash, input.userId, input.expiresAt]
+    );
+  },
+
+  async getPasswordResetToken(tokenHash: string): Promise<{ userId: string; expiresAt: string } | null> {
+    const { rows } = await pool.query(
+      `SELECT user_id, expires_at FROM password_reset_tokens WHERE token_hash = $1`,
+      [tokenHash]
+    );
+    return rows[0] ? { userId: rows[0].user_id, expiresAt: rows[0].expires_at } : null;
+  },
+
+  async deletePasswordResetToken(tokenHash: string): Promise<void> {
+    await pool.query(`DELETE FROM password_reset_tokens WHERE token_hash = $1`, [tokenHash]);
+  },
+
   // --- applicants ---
 
   async getApplicant(id: string): Promise<Applicant | null> {
