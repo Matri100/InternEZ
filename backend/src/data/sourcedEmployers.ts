@@ -38,6 +38,62 @@ export const SOURCED_EMPLOYERS: SourcedEmployer[] = [
     ats: "greenhouse",
     token: "wise",
   },
+  {
+    key: "gh:celonis",
+    name: "Celonis",
+    website: "https://www.celonis.com",
+    ats: "greenhouse",
+    token: "celonis",
+  },
+  {
+    key: "gh:hellofresh",
+    name: "HelloFresh",
+    website: "https://www.hellofresh.com",
+    ats: "greenhouse",
+    token: "hellofresh",
+  },
+  {
+    key: "gh:getyourguide",
+    name: "GetYourGuide",
+    website: "https://www.getyourguide.com",
+    ats: "greenhouse",
+    token: "getyourguide",
+  },
+  {
+    key: "gh:doctolib",
+    name: "Doctolib",
+    website: "https://www.doctolib.fr",
+    ats: "greenhouse",
+    token: "doctolib",
+  },
+  {
+    key: "gh:algolia",
+    name: "Algolia",
+    website: "https://www.algolia.com",
+    ats: "greenhouse",
+    token: "algolia",
+  },
+  {
+    key: "gh:bitpanda",
+    name: "Bitpanda",
+    website: "https://www.bitpanda.com",
+    ats: "greenhouse",
+    token: "bitpanda",
+  },
+  {
+    key: "gh:datadog",
+    name: "Datadog",
+    website: "https://www.datadoghq.com",
+    ats: "greenhouse",
+    token: "datadog",
+  },
+  {
+    key: "gh:solarisbank",
+    name: "Solaris",
+    website: "https://www.solarisgroup.com",
+    ats: "greenhouse",
+    token: "solarisbank",
+  },
   // No Lever employers yet — couldn't find a real EU internship-posting
   // company on Lever to verify live while building this. Add one here
   // once you've confirmed a real token per the instructions above:

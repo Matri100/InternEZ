@@ -101,28 +101,32 @@ export function ListingDetail() {
         <div>
           <div className="detail-section">
             <h3>About this role</h3>
-            <p style={{ color: "var(--text-secondary)" }}>{listing.description}</p>
+            <p style={{ color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>{listing.description}</p>
           </div>
 
-          <div className="detail-section">
-            <h3>Requirements</h3>
-            <ul>
-              {listing.requirements.map((r) => (
-                <li key={r}>{r}</li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="detail-section">
-            <h3>Skills</h3>
-            <div className="tag-row">
-              {listing.skills.map((s) => (
-                <span className="tag" key={s}>
-                  {s}
-                </span>
-              ))}
+          {listing.requirements.length > 0 && (
+            <div className="detail-section">
+              <h3>Requirements</h3>
+              <ul>
+                {listing.requirements.map((r) => (
+                  <li key={r}>{r}</li>
+                ))}
+              </ul>
             </div>
-          </div>
+          )}
+
+          {listing.skills.length > 0 && (
+            <div className="detail-section">
+              <h3>Skills</h3>
+              <div className="tag-row">
+                {listing.skills.map((s) => (
+                  <span className="tag" key={s}>
+                    {s}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {listing.requiredLanguages.length > 0 && (
             <div className="detail-section">
@@ -149,10 +153,12 @@ export function ListingDetail() {
           </div>
 
           <div className="sidebar-card">
-            <div className="sidebar-fact">
-              <span>Department</span>
-              <span>{listing.department}</span>
-            </div>
+            {listing.department && (
+              <div className="sidebar-fact">
+                <span>Department</span>
+                <span>{listing.department}</span>
+              </div>
+            )}
             <div className="sidebar-fact">
               <span>Work arrangement</span>
               <span>{listing.workArrangement}</span>
@@ -165,18 +171,24 @@ export function ListingDetail() {
               <span>Start</span>
               <span>{listing.startLabel}</span>
             </div>
-            <div className="sidebar-fact">
-              <span>End</span>
-              <span>{listing.endLabel}</span>
-            </div>
-            <div className="sidebar-fact">
-              <span>Deadline</span>
-              <span>{listing.applicationDeadline}</span>
-            </div>
-            <div className="sidebar-fact">
-              <span>Compensation</span>
-              <span>{listing.compensation}</span>
-            </div>
+            {listing.endLabel && (
+              <div className="sidebar-fact">
+                <span>End</span>
+                <span>{listing.endLabel}</span>
+              </div>
+            )}
+            {listing.applicationDeadline && (
+              <div className="sidebar-fact">
+                <span>Deadline</span>
+                <span>{listing.applicationDeadline}</span>
+              </div>
+            )}
+            {listing.compensation && (
+              <div className="sidebar-fact">
+                <span>Compensation</span>
+                <span>{listing.compensation}</span>
+              </div>
+            )}
           </div>
 
           <button type="button" className="btn btn-primary" onClick={() => setApplying(true)} disabled={applied}>
