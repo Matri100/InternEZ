@@ -40,6 +40,9 @@ function emptyForm(): FormState {
     // services/language.ts) — no form field for it, this default is only
     // ever seen if the request somehow fails before that.
     language: "English",
+    // Only ever set for sourced (ingested) listings, never posted through
+    // this form — see services/ingestion/ on the backend.
+    applyUrl: "",
     requirements: [],
     skills: [],
     targetFields: [],

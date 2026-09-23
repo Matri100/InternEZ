@@ -70,6 +70,15 @@ export function ListingCard({
             </span>
           )}
 
+          {listing.origin === "sourced" && (
+            <span
+              className="listing-flag-badge"
+              title="Pulled from the employer's own hiring system — applying links out to their site"
+            >
+              External listing
+            </span>
+          )}
+
           <button
             type="button"
             className={`save-btn ${listing.saved ? "saved" : ""}`}

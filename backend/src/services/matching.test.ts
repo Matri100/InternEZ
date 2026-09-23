@@ -54,6 +54,7 @@ function makeListing(overrides: Partial<Listing> = {}): Listing {
     applicationDeadline: "",
     description: "",
     language: "English",
+    applyUrl: "",
     requirements: [],
     skills: [],
     targetFields: [],

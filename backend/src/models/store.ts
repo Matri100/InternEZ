@@ -129,6 +129,7 @@ function listingFromRow(row: any): Listing {
     applicationDeadline: row.application_deadline,
     description: row.description,
     language: row.language,
+    applyUrl: row.apply_url,
     requirements: JSON.parse(row.requirements),
     skills: JSON.parse(row.skills),
     targetFields: JSON.parse(row.target_fields),
@@ -376,8 +377,8 @@ export const db = {
         id, company_id, created_at, title, location, country, origin, department, work_arrangement,
         required_education_level, duration, start_date, start_label, end_label, compensation,
         application_deadline, description, requirements, skills, target_fields, required_languages,
-        industries, preferred_qualifications, eligibility, extra_questions, language
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)`,
+        industries, preferred_qualifications, eligibility, extra_questions, language, apply_url
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)`,
       listingParams(id, companyId, createdAt, input)
     );
     return (await db.getListing(id))!;
@@ -398,7 +399,7 @@ export const db = {
         application_deadline=$16, description=$17, requirements=$18,
         skills=$19, target_fields=$20, required_languages=$21,
         industries=$22, preferred_qualifications=$23, eligibility=$24,
-        extra_questions=$25, language=$26
+        extra_questions=$25, language=$26, apply_url=$27
       WHERE id=$1`,
       listingParams(id, companyId, existing.createdAt, patch)
     );
@@ -408,6 +409,42 @@ export const db = {
   async deleteListing(id: string, companyId: string): Promise<boolean> {
     const result = await pool.query(`DELETE FROM listings WHERE id = $1 AND company_id = $2`, [id, companyId]);
     return (result.rowCount ?? 0) > 0;
+  },
+
+  // Ingestion (see services/ingestion/) calls this instead of createListing:
+  // `id` is a deterministic key derived from the source (e.g. the ATS's own
+  // job id), not a fresh randomUUID, so re-running a sync updates the same
+  // row instead of duplicating it. createdAt is preserved across re-syncs
+  // (taken from the existing row when there is one) so "Newest" sort
+  // reflects when InternEZ first saw the listing, not the last sync time.
+  async upsertSourcedListing(
+    id: string,
+    companyId: string,
+    input: Omit<Listing, "id" | "companyId" | "createdAt">
+  ): Promise<Listing> {
+    const existing = await db.getListing(id);
+    const createdAt = existing?.createdAt ?? new Date().toISOString();
+    await pool.query(
+      `INSERT INTO listings (
+        id, company_id, created_at, title, location, country, origin, department, work_arrangement,
+        required_education_level, duration, start_date, start_label, end_label, compensation,
+        application_deadline, description, requirements, skills, target_fields, required_languages,
+        industries, preferred_qualifications, eligibility, extra_questions, language, apply_url
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)
+      ON CONFLICT (id) DO UPDATE SET
+        company_id=excluded.company_id, title=excluded.title, location=excluded.location,
+        country=excluded.country, origin=excluded.origin, department=excluded.department,
+        work_arrangement=excluded.work_arrangement, required_education_level=excluded.required_education_level,
+        duration=excluded.duration, start_date=excluded.start_date, start_label=excluded.start_label,
+        end_label=excluded.end_label, compensation=excluded.compensation,
+        application_deadline=excluded.application_deadline, description=excluded.description,
+        requirements=excluded.requirements, skills=excluded.skills, target_fields=excluded.target_fields,
+        required_languages=excluded.required_languages, industries=excluded.industries,
+        preferred_qualifications=excluded.preferred_qualifications, eligibility=excluded.eligibility,
+        extra_questions=excluded.extra_questions, language=excluded.language, apply_url=excluded.apply_url`,
+      listingParams(id, companyId, createdAt, input)
+    );
+    return (await db.getListing(id))!;
   },
 
   // --- companies ---
@@ -1207,5 +1244,6 @@ function listingParams(id: string, companyId: string, createdAt: string, input: 
     JSON.stringify(input.eligibility),
     JSON.stringify(input.extraQuestions),
     input.language,
+    input.applyUrl,
   ];
 }

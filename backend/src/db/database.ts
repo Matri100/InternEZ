@@ -129,6 +129,7 @@ await pool.query(`
     application_deadline TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
     language TEXT NOT NULL DEFAULT 'English',
+    apply_url TEXT NOT NULL DEFAULT '',
     requirements TEXT NOT NULL DEFAULT '[]',
     skills TEXT NOT NULL DEFAULT '[]',
     target_fields TEXT NOT NULL DEFAULT '[]',
@@ -277,6 +278,7 @@ await pool.query(`
   -- so the column needs adding explicitly. ADD COLUMN IF NOT EXISTS makes
   -- this safe to run on every boot, same as the CREATE statements above.
   ALTER TABLE listings ADD COLUMN IF NOT EXISTS language TEXT NOT NULL DEFAULT 'English';
+  ALTER TABLE listings ADD COLUMN IF NOT EXISTS apply_url TEXT NOT NULL DEFAULT '';
 
   CREATE INDEX IF NOT EXISTS idx_listings_company ON listings(company_id);
   CREATE INDEX IF NOT EXISTS idx_applications_applicant ON applications(applicant_id);

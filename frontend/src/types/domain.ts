@@ -196,6 +196,9 @@ export interface Listing {
   // language the posting itself is written in, distinct from
   // requiredLanguages (a job requirement) below.
   language: string;
+  // Where a "sourced" listing's real application form lives — "" for
+  // origin "direct", where the in-app apply flow is the real pipeline.
+  applyUrl: string;
   requirements: string[];
   skills: string[];
   targetFields: FieldOfStudy[];
