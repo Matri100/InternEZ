@@ -196,6 +196,12 @@ export interface Listing {
   // confidently. Distinct from requiredLanguages below: this is what
   // language the posting itself is written in, not a job requirement.
   language: string;
+  // Where a "sourced" listing's real application form lives (see
+  // services/ingestion/) — InternEZ has no write access to the employer's
+  // own ATS, so applying here means linking out, not submitting through
+  // our own form (see ApplyModal). Always "" for origin "direct", where
+  // the in-app apply flow is the real pipeline.
+  applyUrl: string;
   requirements: string[];
   skills: string[];
   targetFields: FieldOfStudy[];

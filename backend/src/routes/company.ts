@@ -69,6 +69,10 @@ function parseListingInput(body: any): Omit<Listing, "id" | "companyId" | "creat
     location: String(body.location ?? ""),
     country: body.country ?? null,
     origin: "direct",
+    // Only "sourced" listings (see services/ingestion/) ever have a real
+    // external apply link — a company posting directly through this form
+    // is the real pipeline, so there's nothing to link out to.
+    applyUrl: "",
     department: String(body.department ?? ""),
     workArrangement: body.workArrangement,
     requiredEducationLevel: body.requiredEducationLevel,
