@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authLimiter } from "../middleware/rateLimit.js";
+import { accessCheckLimiter, authLimiter } from "../middleware/rateLimit.js";
 import {
   EARLY_ACCESS_COOKIE,
   EARLY_ACCESS_COOKIE_MAX_AGE_MS,
@@ -10,10 +10,9 @@ import {
 
 export const earlyAccessRouter = Router();
 
-// Re-checked on mount against whatever cookie is already there (if any) —
-// rate limited since, like /unlock, it's validating a submitted value and
-// is just as guessable otherwise.
-earlyAccessRouter.get("/status", authLimiter, (req, res) => {
+// Re-checked on every page load against whatever cookie is already there
+// (if any) — see accessCheckLimiter for why it isn't on authLimiter.
+earlyAccessRouter.get("/status", accessCheckLimiter, (req, res) => {
   if (!isEarlyAccessEnabled()) {
     res.json({ granted: true });
     return;
