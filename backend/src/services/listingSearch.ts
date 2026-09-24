@@ -4,6 +4,7 @@
 // summaries (no descriptions), which stays fast into the tens of
 // thousands of rows — eligibility and match score are computed per
 // viewer anyway, so they can't be pushed into SQL.
+import { canonicalCity, cityNamesFor } from "../data/cities.js";
 import { computeEligibility } from "./eligibility.js";
 import { computeMatch } from "./matching.js";
 import type {
@@ -29,12 +30,20 @@ function fold(text: string): string {
   return text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 }
 
-// The city part of a location: "Munich" from "Munich, Bavaria, Germany".
-// null when the location is only a country, or a remote/placeholder label.
-export function cityOf(listing: Pick<Listing, "location">): string | null {
+// The city part of a location as the feed wrote it: "Warszawa" from
+// "Warszawa, Masovian Voivodeship, Poland". null when the location is only
+// a country, or a remote/placeholder label.
+function rawCityOf(listing: Pick<Listing, "location">): string | null {
   const first = listing.location.split(",")[0].trim();
   if (!first || !listing.location.includes(",")) return null;
   return first;
+}
+
+// The city a listing is filtered and counted under — one name however the
+// feed spelled it ("Warsaw" for "Warszawa" too; see data/cities.ts).
+export function cityOf(listing: Pick<Listing, "location" | "country">): string | null {
+  const raw = rawCityOf(listing);
+  return raw ? canonicalCity(raw, listing.country) : null;
 }
 
 // Sourced listings get duration "Flexible" only because the feed gives no
@@ -64,11 +73,17 @@ interface Candidate {
 }
 
 function toCandidate(listing: ListingRow, company: Company): Candidate {
+  const raw = rawCityOf(listing);
+  // Every known name of the city is searchable, so "Warschau" (typed in
+  // the German interface) finds "Warszawa, ..., Poland".
+  const cityNames = raw ? cityNamesFor(raw, listing.country) : [];
   return {
     listing,
     company,
-    city: cityOf(listing),
-    haystack: fold([listing.title, company.name, listing.department, listing.location, ...listing.skills].join(" ")),
+    city: raw ? canonicalCity(raw, listing.country) : null,
+    haystack: fold(
+      [listing.title, company.name, listing.department, listing.location, ...cityNames, ...listing.skills].join(" ")
+    ),
   };
 }
 
@@ -84,7 +99,13 @@ function failedDimensions(candidate: Candidate, filters: SavedSearchFilters, wor
   if (filters.countries.length > 0 && !filters.countries.includes(listing.country as CountryCode)) {
     failed.push("countries");
   }
-  if (filters.cities.length > 0 && !(candidate.city && filters.cities.includes(candidate.city))) {
+  // A filter value is normally already canonical (it came from the city
+  // facet); one saved before cities were merged ("Warszawa") still matches.
+  const { city } = candidate;
+  if (
+    filters.cities.length > 0 &&
+    !(city && filters.cities.some((c) => c === city || canonicalCity(c, listing.country) === city))
+  ) {
     failed.push("cities");
   }
   if (filters.languages.length > 0 && !filters.languages.includes(listing.language)) failed.push("languages");

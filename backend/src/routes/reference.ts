@@ -21,6 +21,7 @@ import {
   VETERAN_STATUS_OPTIONS,
   DISABILITY_STATUS_OPTIONS,
 } from "../data/reference.js";
+import { CITY_DISPLAY_NAMES } from "../data/cities.js";
 import type { CountryCode } from "../types/domain.js";
 
 export const referenceRouter = Router();
@@ -46,6 +47,9 @@ referenceRouter.get("/", (_req, res) => {
     raceEthnicityOptions: RACE_ETHNICITY_OPTIONS,
     veteranStatusOptions: VETERAN_STATUS_OPTIONS,
     disabilityStatusOptions: DISABILITY_STATUS_OPTIONS,
+    // A city's name in each interface language, keyed by the name Browse
+    // filters under ("Warsaw" -> { de: "Warschau", pl: "Warszawa", ... }).
+    cityNames: CITY_DISPLAY_NAMES,
     // Universities are ~5,500 records across 26 countries — fetched on demand
     // per country (see /universities/:country) instead of inlined here, so
     // the main reference payload stays small on first load.

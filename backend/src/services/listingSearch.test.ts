@@ -112,7 +112,8 @@ describe("searchListings", () => {
   });
 
   it("searches title, company and location, ignoring case and accents", () => {
-    expect(search(rows, { query: "munchen" }).items.map((l) => l.id)).toEqual(["e"]);
+    // "e" has München in its title; "a" is located in Munich, whose German name is München.
+    expect(search(rows, { query: "munchen" }).items.map((l) => l.id).sort()).toEqual(["a", "e"]);
     expect(search(rows, { query: "bosch marketing" }).items.map((l) => l.id)).toEqual(["a"]);
     expect(search(rows, { query: "airbus paris" }).items.map((l) => l.id)).toEqual(["c"]);
   });
@@ -163,8 +164,48 @@ describe("searchListings", () => {
 
 describe("cityOf", () => {
   it("takes the part before the first comma, and nothing for a bare country", () => {
-    expect(cityOf({ location: "Munich, Bavaria, Germany" })).toBe("Munich");
-    expect(cityOf({ location: "Germany" })).toBeNull();
+    expect(cityOf({ location: "Munich, Bavaria, Germany", country: "DE" })).toBe("Munich");
+    expect(cityOf({ location: "Germany", country: "DE" })).toBeNull();
+  });
+
+  it("gives every spelling of a known city the same name", () => {
+    // Real feed spellings: "Warsaw" 6 times, "Warszawa" 3 times.
+    expect(cityOf({ location: "Warszawa, Masovian Voivodeship, Poland", country: "PL" })).toBe("Warsaw");
+    expect(cityOf({ location: "Warsaw, Masovian Voivodeship, Poland", country: "PL" })).toBe("Warsaw");
+    expect(cityOf({ location: "Roma, Lazio, Italy", country: "IT" })).toBe("Rome");
+    expect(cityOf({ location: "Krakow, Lesser Poland Voivodeship, Poland", country: "PL" })).toBe("Kraków");
+    expect(cityOf({ location: "Lodz, Poland", country: "PL" })).toBe("Łódź");
+  });
+
+  it("only merges names within the city's own country", () => {
+    // French for Vienna, but also a town in France (a real listing).
+    expect(cityOf({ location: "Vienne, Auvergne-Rhône-Alpes, France", country: "FR" })).toBe("Vienne");
+    expect(cityOf({ location: "Wien, Austria", country: "AT" })).toBe("Vienna");
+  });
+});
+
+describe("city merging in search", () => {
+  const polish = [
+    row("w1", { location: "Warsaw, Masovian Voivodeship, Poland", country: "PL" }),
+    row("w2", { location: "Warszawa, Masovian Voivodeship, Poland", country: "PL" }),
+    row("k1", { location: "Kraków, Lesser Poland Voivodeship, Poland", country: "PL" }),
+  ];
+
+  it("counts all spellings under one city option", () => {
+    expect(search(polish).facets.cities).toEqual([
+      { value: "Warsaw", count: 2, country: "PL" },
+      { value: "Kraków", count: 1, country: "PL" },
+    ]);
+    expect(search(polish, { cities: ["Warsaw"] }).items.map((l) => l.id).sort()).toEqual(["w1", "w2"]);
+  });
+
+  it("still matches a city filter saved under an old spelling", () => {
+    expect(search(polish, { cities: ["Warszawa"] }).items.map((l) => l.id).sort()).toEqual(["w1", "w2"]);
+  });
+
+  it("finds a city by any of its names, in any interface language", () => {
+    expect(search(polish, { query: "Warschau" }).items.map((l) => l.id).sort()).toEqual(["w1", "w2"]);
+    expect(search(polish, { query: "cracovie" }).items.map((l) => l.id)).toEqual(["k1"]);
   });
 });
 

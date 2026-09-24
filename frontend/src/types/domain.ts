@@ -357,6 +357,9 @@ export interface ReferenceData {
   raceEthnicityOptions: string[];
   veteranStatusOptions: string[];
   disabilityStatusOptions: string[];
+  // Browse city value -> its name in each interface language that differs
+  // from English (backend data/cities.ts).
+  cityNames: Record<string, Partial<Record<string, string>>>;
 }
 
 // --- messaging ---
