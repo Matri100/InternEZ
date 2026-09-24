@@ -17,6 +17,7 @@ import {
   type ListFilterKey,
 } from "../lib/browseQuery";
 import { T, useI18n } from "../i18n";
+import { useCityName } from "../lib/cityNames";
 import type { MessageKey } from "../i18n/messages/en";
 import type { ListingSearchResult, ListingSort, ListingSummary } from "../types/domain";
 
@@ -47,6 +48,7 @@ function capitalize(text: string): string {
 export function Browse() {
   const { profile, loading: profileLoading } = useAppData();
   const { t, countryName, languageName } = useI18n();
+  const cityName = useCityName();
   const [searchParams, setSearchParams] = useSearchParams();
   const state = useMemo(() => readBrowseState(searchParams), [searchParams]);
 
@@ -180,7 +182,7 @@ export function Browse() {
 
   const chips: { key: string; label: string; remove: () => void }[] = [
     ...state.countries.map((c) => ({ key: `country-${c}`, label: countryName(c), remove: () => toggleIn("countries", c) })),
-    ...state.cities.map((c) => ({ key: `city-${c}`, label: c, remove: () => toggleIn("cities", c) })),
+    ...state.cities.map((c) => ({ key: `city-${c}`, label: cityName(c), remove: () => toggleIn("cities", c) })),
     ...state.languages.map((l) => ({
       key: `lang-${l}`,
       label: t("browse.chipPostedIn", { language: languageName(l) }),
@@ -257,6 +259,7 @@ export function Browse() {
                 options={facets.cities}
                 selected={state.cities}
                 onToggle={(v) => toggleIn("cities", v)}
+                label={cityName}
                 searchPlaceholder={t("browse.findCity")}
               />
               <FacetList

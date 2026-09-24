@@ -6,14 +6,19 @@ import { ApplyModal } from "../components/ApplyModal";
 import { BellIcon } from "../components/icons";
 import { browseUrlFor } from "../lib/browseQuery";
 import { useI18n } from "../i18n";
+import { useCityName } from "../lib/cityNames";
 import type { ListingWithComputed, SavedSearch } from "../types/domain";
 
-function describeFilters(filters: SavedSearch["filters"], i18n: ReturnType<typeof useI18n>): string {
+function describeFilters(
+  filters: SavedSearch["filters"],
+  i18n: ReturnType<typeof useI18n>,
+  cityName: (city: string) => string
+): string {
   const { t, countryName, languageName } = i18n;
   const parts: string[] = [];
   if (filters.query) parts.push(`"${filters.query}"`);
   parts.push(...filters.countries.map(countryName));
-  parts.push(...filters.cities);
+  parts.push(...filters.cities.map(cityName));
   parts.push(...filters.languages.map((l) => t("browse.chipPostedIn", { language: languageName(l) })));
   parts.push(...filters.workArrangements.map((w) => t(`arrangement.${w}`)));
   parts.push(...filters.durations.map((d) => t(`duration.${d}`)));
@@ -28,6 +33,7 @@ export function Saved() {
   const [justApplied, setJustApplied] = useState<string | null>(null);
   const i18n = useI18n();
   const { t } = i18n;
+  const cityName = useCityName();
 
   useEffect(() => {
     api.getSavedListings().then(setListings);
@@ -68,7 +74,7 @@ export function Saved() {
                     <BellIcon />
                     {search.name}
                   </h3>
-                  <span className="company">{describeFilters(search.filters, i18n)}</span>
+                  <span className="company">{describeFilters(search.filters, i18n, cityName)}</span>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <Link to={browseUrlFor(search.filters)} className="btn btn-secondary btn-sm">
