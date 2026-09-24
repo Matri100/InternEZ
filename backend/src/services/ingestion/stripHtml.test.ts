@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { stripHtml } from "./stripHtml.js";
+import { cleanInline, cleanText, decodeEntities, removeLeakedCss, stripHtml } from "./stripHtml.js";
 
 describe("stripHtml", () => {
   it("strips ordinary HTML tags", () => {
@@ -85,5 +85,93 @@ describe("stripHtml", () => {
     expect(stripHtml("<p>Hello <strong>world</strong>, how are you?</p>")).toBe(
       "Hello world, how are you?"
     );
+  });
+
+  it("decodes numeric entities, including double-encoded ones", () => {
+    // Real Active Jobs DB text: "Stefan&#xa0;Wolf" showed up verbatim on a
+    // live listing, and accented letters arrive as "&#xe9;" etc.
+    expect(stripHtml("<p>Stefan&#xa0;Wolf (Functional Department)</p>")).toBe("Stefan Wolf (Functional Department)");
+    expect(stripHtml("<p>Exp&#xe9;rience &#x2013; M&#xfc;nchen &#8217;24</p>")).toBe("Expérience – München ’24");
+    expect(stripHtml("<p>Caf&amp;#xe9;</p>")).toBe("Café");
+  });
+
+  it("decodes named entities beyond the basic five", () => {
+    expect(stripHtml("<p>Don&rsquo;t &ndash; na&iuml;ve &euro;500</p>")).toBe("Don’t – naïve €500");
+  });
+
+  it("leaves a bare ampersand that is not an entity alone", () => {
+    expect(stripHtml("<p>R&D at AT&T, P&G</p>")).toBe("R&D at AT&T, P&G");
+  });
+
+  it("drops invisible characters and normalizes odd spaces", () => {
+    expect(stripHtml("<p>Soft&#xad;ware&#x200b; team&#x202f;!</p>")).toBe("Software team !");
+  });
+
+  it("turns symbol-bulleted lines into list lines", () => {
+    const html = "<p>We offer:<br>• Mentoring<br>➢ A laptop<br>– Lunch</p>";
+    expect(stripHtml(html)).toBe("We offer:\n- Mentoring\n- A laptop\n- Lunch");
+  });
+
+  it("does not double up a list item that repeats the bullet symbol", () => {
+    expect(stripHtml("<ul><li>• Mentoring</li></ul>")).toBe("- Mentoring");
+  });
+
+  it("drops a heading that is only a no-break space", () => {
+    expect(stripHtml("<p>One.</p><p><strong>&#xa0;</strong></p><p>Two.</p>")).toBe("One.\n\nTwo.");
+  });
+});
+
+describe("stripHtml code blocks and tracking tags", () => {
+  it("drops <style> and <script> blocks instead of keeping their code as text", () => {
+    const html = "<style>#careerSite h2{ color: #030F40; }</style><script>track()</script><p>QUI SOMMES-NOUS</p>";
+    expect(stripHtml(html)).toBe("QUI SOMMES-NOUS");
+  });
+
+  it("drops HTML comments", () => {
+    expect(stripHtml("<p>One<!-- <b>hidden</b> --></p>")).toBe("One");
+  });
+
+  it("removes LinkedIn tracking tags but keeps the employer's own hashtags", () => {
+    expect(stripHtml("<p>Apply now!</p><p>#LI-DNI</p><p>#LI-Onsite #EarlyTalent</p>")).toBe(
+      "Apply now!\n\n#EarlyTalent"
+    );
+  });
+});
+
+describe("removeLeakedCss", () => {
+  it("removes CSS rules and @media blocks stored as plain text", () => {
+    // Shape of two real stored Suez descriptions, shortened.
+    const stored =
+      "#careerSite.container{\nfont-family: Arial;\n}\n#careerSite .backToLink{\ncolor: #030F40;\nfont-weight: bold;\n}\n\n" +
+      "@media screen and (min-width: 200px) and (max-width: 840px) {\n#careerSite .contractType{\ndisplay: flex;\n" +
+      "padding: 5px;\n}\n#careerSite .encartTxt {\npadding-top:70px\n}\n}\n\n" +
+      "#careerSite .contractType .contractTypeText p {\npadding: 0!important;\n}\n\n\n\nType de contrat\n\nInternship";
+    expect(cleanText(removeLeakedCss(stored))).toBe("Type de contrat\n\nInternship");
+  });
+
+  it("keeps the line of text right above a rule", () => {
+    expect(cleanText(removeLeakedCss("Intro text\n#x h2{\ncolor: red;\n}\nMore"))).toBe("Intro text\n\nMore");
+  });
+
+  it("leaves ordinary text with braces alone", () => {
+    const text = "Skills {required}: Python, SQL.";
+    expect(removeLeakedCss(text)).toBe(text);
+  });
+});
+
+describe("cleanText", () => {
+  it("repairs already-stored text without disturbing its structure markers", () => {
+    const stored = "**Your tasks**\n\n- Support the team\n• Analyse data\n\nMore text.";
+    expect(cleanText(decodeEntities(stored))).toBe("**Your tasks**\n\n- Support the team\n- Analyse data\n\nMore text.");
+  });
+
+  it("does not turn an en dash range at the start of a line into a bullet", () => {
+    expect(cleanText("–20% discount")).toBe("–20% discount");
+  });
+});
+
+describe("cleanInline", () => {
+  it("decodes and flattens a one-line field", () => {
+    expect(cleanInline("  Stagiaire Contr&#xf4;le de Gestion  ")).toBe("Stagiaire Contrôle de Gestion");
   });
 });

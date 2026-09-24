@@ -293,6 +293,25 @@ await pool.query(`
   UPDATE listings SET expires_at = '2026-09-24T00:00:00.000Z'
     WHERE (id LIKE 'gh:%' OR id LIKE 'lever:%') AND expires_at IS NULL;
 
+  -- One-time retirement of the eight fictional listings the first seed
+  -- shipped with (Nordwind Robotics, Halcyon Defense, ...), now that Browse
+  -- has real ones. Hidden, not deleted, for the same reason as above: the
+  -- demo applicant's sample application points at one of them.
+  UPDATE listings SET expires_at = '2026-09-24T00:00:00.000Z'
+    WHERE id IN ('l_nordwind_swe', 'l_halcyon_sys', 'l_meridian_lab', 'l_orbit_design',
+                 'l_kestrel_data', 'l_fjord_sustainability', 'l_veltra_mech', 'l_brightline_backend')
+      AND expires_at IS NULL;
+  -- The demo company login owns the fictional "Nordwind Robotics" profile;
+  -- it stays as a login for trying the company side, under an honest name.
+  UPDATE companies SET name = 'InternEZ Demo Company', verified = 0,
+      description = 'Demo account for trying the company side of InternEZ.',
+      website = '', headquarters = NULL, company_size = NULL
+    WHERE id = 'co_nordwind' AND name = 'Nordwind Robotics';
+
+  -- Sourced listings used to claim a "Flexible" start date the feed never
+  -- gave; an empty label now shows as "Not specified".
+  UPDATE listings SET start_label = '' WHERE id LIKE 'ajdb:%' AND start_label = 'Flexible';
+
   CREATE INDEX IF NOT EXISTS idx_listings_company ON listings(company_id);
   CREATE INDEX IF NOT EXISTS idx_listings_expires ON listings(expires_at);
   CREATE INDEX IF NOT EXISTS idx_applications_applicant ON applications(applicant_id);

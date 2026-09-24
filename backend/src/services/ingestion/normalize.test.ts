@@ -61,6 +61,17 @@ describe("normalizeActiveJob", () => {
     expect(listing.language).toBe("Italian");
   });
 
+  it("decodes entities in one-line fields", () => {
+    const job = pandoraJob({ title: "Stagiaire Contr&#xf4;le de Gestion", organization: "Proc&amp;#xe9;d&#xe9;s SA" });
+    const { listing, company } = normalized(job);
+    expect(listing.title).toBe("Stagiaire Contrôle de Gestion");
+    expect(company.name).toBe("Procédés SA");
+  });
+
+  it("leaves the start date empty instead of claiming it's flexible", () => {
+    expect(normalized(pandoraJob()).listing.startLabel).toBe("");
+  });
+
   it("formats compensation from the salary fields", () => {
     expect(normalized(pandoraJob()).listing.compensation).toBe("650 EUR / month");
     const range = pandoraJob({ ai_salary_value: null, ai_salary_min_value: 1200, ai_salary_max_value: 1500 });
