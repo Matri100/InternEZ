@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
+import { motionReduced } from "../accessibility/settings";
 import { useAppData } from "../context/AppData";
 import { ListingCard } from "../components/ListingCard";
 import { ApplyModal } from "../components/ApplyModal";
@@ -17,7 +18,6 @@ import {
   type ListFilterKey,
 } from "../lib/browseQuery";
 import { T, useI18n } from "../i18n";
-import { motionReduced } from "../accessibility/settings";
 import type { MessageKey } from "../i18n/messages/en";
 import type { ListingSearchResult, ListingSort, ListingSummary } from "../types/domain";
 
