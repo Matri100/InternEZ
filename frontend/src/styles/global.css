@@ -92,6 +92,11 @@
 
   --focus-ring: 0 0 0 3px rgba(22, 35, 63, 0.25);
 
+  /* Browse map: countries outside InternEZ's coverage, and covered
+     countries with no matching listings. */
+  --map-context: #eef0f3;
+  --map-empty: #dfe3e9;
+
   color-scheme: light;
 }
 
@@ -127,6 +132,9 @@
     --shadow-accent: 0 1px 3px rgba(0, 0, 0, 0.45);
     --focus-ring: 0 0 0 3px rgba(102, 133, 247, 0.4);
 
+    --map-context: #171d2b;
+    --map-empty: #242c40;
+
     color-scheme: dark;
   }
 }
@@ -161,6 +169,9 @@
   --shadow-popover: 0 4px 18px rgba(0, 0, 0, 0.5);
   --shadow-accent: 0 1px 3px rgba(0, 0, 0, 0.45);
   --focus-ring: 0 0 0 3px rgba(102, 133, 247, 0.4);
+
+  --map-context: #171d2b;
+  --map-empty: #242c40;
 
   color-scheme: dark;
 }
@@ -1456,6 +1467,420 @@ fieldset {
   }
   .sort-control select {
     width: 100%;
+  }
+}
+
+/* ---------- browse: sidebar filters, results, map, pages ---------- */
+
+.page-wide {
+  max-width: 1240px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.browse-layout {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+/* The filter button only matters once the sidebar collapses. */
+.browse-filters-toggle {
+  display: none;
+}
+
+.browse-sidebar {
+  position: sticky;
+  top: var(--space-4);
+  max-height: calc(100vh - var(--space-6));
+  overflow-y: auto;
+  padding-right: var(--space-2);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.facet {
+  border: none;
+  margin: 0 0 var(--space-5);
+  padding: 0 0 var(--space-5);
+  border-bottom: 1px solid var(--border);
+  min-width: 0;
+}
+
+.facet:last-child {
+  border-bottom: none;
+}
+
+.facet-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.facet legend {
+  padding: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.facet-action,
+.facet-more {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent-ink);
+  cursor: pointer;
+}
+
+.facet-action:hover,
+.facet-more:hover {
+  text-decoration: underline;
+}
+
+.facet-more {
+  margin-top: var(--space-2);
+}
+
+.facet-search {
+  margin-bottom: var(--space-2);
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.facet-options {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.facet-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 5px 0;
+  font-size: 13.5px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.facet-option input {
+  margin: 0;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+
+.facet-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.facet-count {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.facet-empty {
+  font-size: 13px;
+  color: var(--text-faint);
+  padding: 5px 0;
+}
+
+.browse-results-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+  scroll-margin-top: var(--space-4);
+}
+
+.browse-total {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.browse-total strong {
+  color: var(--text);
+  font-size: 16px;
+}
+
+.browse-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.browse-actions .btn-ghost.active {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+.browse-save-search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.browse-save-search .input {
+  width: 170px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.browse-save-confirmed {
+  font-size: 13px;
+  color: var(--ok);
+}
+
+.active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.active-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+  border-radius: var(--radius-pill);
+  padding: 3px 8px;
+  font-size: 12.5px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.active-filter:hover {
+  border-color: var(--border-strong);
+}
+
+.active-filter span[aria-hidden] {
+  color: var(--text-faint);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.browse-loading {
+  color: var(--text-secondary);
+}
+
+.browse-list.refreshing {
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+  flex-wrap: wrap;
+}
+
+.pagination ol {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pagination-page {
+  min-width: 34px;
+  height: 34px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: none;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.pagination-page:hover {
+  background: var(--surface-alt);
+  color: var(--text);
+}
+
+.pagination-page.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+
+.pagination-gap {
+  padding: 0 var(--space-1);
+  color: var(--text-faint);
+}
+
+.europe-map {
+  position: relative;
+  margin-bottom: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.europe-map-loading {
+  padding: var(--space-7);
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+/* Capped so the map never pushes the results off the first screen; the
+   SVG keeps its proportions and centres inside the box. */
+.europe-map svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: min(440px, 55vh);
+}
+
+.map-context path {
+  fill: var(--map-context);
+  stroke: var(--surface);
+  stroke-width: 0.6;
+}
+
+.map-country path {
+  stroke: var(--surface);
+  stroke-width: 0.8;
+  transition: fill 0.12s;
+}
+
+.map-country.interactive {
+  cursor: pointer;
+}
+
+.map-country.interactive:hover path,
+.map-country.interactive:focus-visible path {
+  stroke: var(--text);
+  stroke-width: 1.4;
+}
+
+.map-country:focus {
+  outline: none;
+}
+
+.map-selection path {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 1.6;
+  pointer-events: none;
+}
+
+/* In the map's own 1000-unit-wide coordinates, which render at roughly
+   half size — so about 12px on screen. */
+.map-labels text {
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+  fill: var(--text);
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 5px;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.map-labels text.on-accent {
+  fill: var(--accent-contrast);
+  stroke: var(--accent);
+}
+
+.map-tooltip {
+  position: absolute;
+  transform: translate(12px, -110%);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-popover);
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.map-tooltip strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .browse-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .browse-filters-toggle {
+    display: flex;
+  }
+
+  .browse-sidebar {
+    display: none;
+    position: static;
+    max-height: none;
+    overflow: visible;
+    padding: var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+  }
+
+  .browse-sidebar.open {
+    display: block;
+  }
+}
+
+@media (max-width: 600px) {
+  .browse-results-head,
+  .browse-actions {
+    align-items: stretch;
+  }
+
+  .browse-actions {
+    width: 100%;
+  }
+
+  .browse-actions .sort-control {
+    flex: 1 1 100%;
+  }
+
+  .browse-actions .sort-control select {
+    flex: 1;
   }
 }
 

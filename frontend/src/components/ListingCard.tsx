@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import type { ListingWithComputed } from "../types/domain";
+import type { ListingSummary } from "../types/domain";
 import { ELIGIBILITY_LABELS } from "./EligibilityFlag";
 import { CompanyLogo } from "./CompanyLogo";
 import { MetaRow } from "./MetaRow";
@@ -13,7 +13,7 @@ export function ListingCard({
   onApply,
   onToggleSave,
 }: {
-  listing: ListingWithComputed;
+  listing: ListingSummary;
   onApply: () => void;
   onToggleSave: () => void;
 }) {

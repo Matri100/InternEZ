@@ -4,6 +4,8 @@
 // SQLite→Postgres swap only ever needed to touch this file and database.ts.
 import { randomUUID } from "node:crypto";
 import { pool, withTransaction } from "../db/database.js";
+import { parseSearchFilters } from "../services/savedSearch.js";
+import type { ListingRow } from "../services/listingSearch.js";
 import type {
   Applicant,
   Application,
@@ -354,14 +356,41 @@ export const db = {
 
   // --- listings ---
 
-  // Browse only — expired sourced listings drop out here, but getListing
-  // still returns them, so a listing someone applied to or saved stays
-  // viewable after it closes.
-  async listListings(): Promise<Listing[]> {
-    const { rows } = await pool.query(`SELECT * FROM listings WHERE expires_at IS NULL OR expires_at > $1`, [
-      new Date().toISOString(),
-    ]);
-    return rows.map(listingFromRow);
+  // Browse's search input: every visible listing with its company, minus
+  // the description (by far the largest column, and not needed to filter,
+  // score or show a result card) — one query instead of one per listing.
+  // Expired sourced listings drop out here, but getListing still returns
+  // them, so a listing someone applied to or saved stays viewable after it
+  // closes.
+  async listVisibleListingRows(): Promise<{ listing: ListingRow; company: Company }[]> {
+    const { rows } = await pool.query(
+      `SELECT l.id, l.company_id, l.created_at, l.title, l.location, l.country, l.origin, l.department,
+              l.work_arrangement, l.required_education_level, l.duration, l.start_date, l.start_label,
+              l.end_label, l.compensation, l.application_deadline, l.language, l.apply_url, l.requirements,
+              l.skills, l.target_fields, l.required_languages, l.industries, l.preferred_qualifications,
+              l.eligibility, l.extra_questions,
+              c.name AS c_name, c.verified AS c_verified, c.logo_url AS c_logo_url, c.description AS c_description,
+              c.website AS c_website, c.headquarters AS c_headquarters, c.company_size AS c_company_size
+       FROM listings l JOIN companies c ON c.id = l.company_id
+       WHERE l.expires_at IS NULL OR l.expires_at > $1`,
+      [new Date().toISOString()]
+    );
+    return rows.map((row) => {
+      const { description: _description, ...listing } = listingFromRow({ ...row, description: "" });
+      return {
+        listing,
+        company: companyFromRow({
+          id: row.company_id,
+          name: row.c_name,
+          verified: row.c_verified,
+          logo_url: row.c_logo_url,
+          description: row.c_description,
+          website: row.c_website,
+          headquarters: row.c_headquarters,
+          company_size: row.c_company_size,
+        }),
+      };
+    });
   },
 
   async getListing(id: string): Promise<Listing | null> {
@@ -805,7 +834,7 @@ export const db = {
       id: row.id,
       applicantId: row.applicant_id,
       name: row.name,
-      filters: JSON.parse(row.filters),
+      filters: parseSearchFilters(JSON.parse(row.filters)),
       createdAt: row.created_at,
     }));
   },
@@ -821,7 +850,7 @@ export const db = {
       id: row.id,
       applicantId: row.applicant_id,
       name: row.name,
-      filters: JSON.parse(row.filters),
+      filters: parseSearchFilters(JSON.parse(row.filters)),
       createdAt: row.created_at,
     }));
   },

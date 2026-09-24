@@ -345,7 +345,7 @@ describe("account deletion", () => {
     const applicantId = await setupApplicant({ discoverable: true });
     const application = await db.createApplication({ applicantId, listingId: listing.id, overridden: false, answers: [] });
     await db.saveListing(applicantId, listing.id);
-    await db.createSavedSearch({ applicantId, name: "watch", filters: { query: "", workArrangements: [], durations: [], fieldOfStudy: "", country: "" } });
+    await db.createSavedSearch({ applicantId, name: "watch", filters: { query: "", countries: [], cities: [], languages: [], workArrangements: [], durations: [], fieldOfStudy: "" } });
     await db.shortlistCandidate(companyId, applicantId);
     const conversation = await db.getOrCreateConversation(applicantId, companyId);
     await db.sendMessage(conversation.id, "company", "hello");

@@ -391,10 +391,43 @@ export interface TalentProfile {
 
 export interface SavedSearchFilters {
   query: string;
+  countries: CountryCode[];
+  cities: string[];
+  languages: string[];
   workArrangements: WorkArrangement[];
   durations: InternshipLength[];
   fieldOfStudy: FieldOfStudy | "";
-  country: CountryCode | "";
+}
+
+// --- browse search (server-side; see backend services/listingSearch.ts) ---
+
+export type ListingSort = "match" | "newest" | "deadline" | "company";
+
+export interface FacetCount {
+  value: string;
+  count: number;
+}
+
+export interface ListingFacets {
+  countries: FacetCount[];
+  cities: (FacetCount & { country: CountryCode | null })[];
+  languages: FacetCount[];
+  workArrangements: FacetCount[];
+  durations: FacetCount[];
+  fieldsOfStudy: FacetCount[];
+  direct: number;
+  eligible: number;
+}
+
+// A Browse result card — everything but the (long) description.
+export type ListingSummary = Omit<ListingWithComputed, "description">;
+
+export interface ListingSearchResult {
+  items: ListingSummary[];
+  total: number;
+  page: number;
+  pageSize: number;
+  facets: ListingFacets;
 }
 
 export interface SavedSearch {

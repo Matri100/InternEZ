@@ -35,7 +35,7 @@ interface FactorDef extends MatchFactor {
  */
 export function computeMatch(
   applicant: Applicant,
-  listing: Listing,
+  listing: Omit<Listing, "description">,
   eligibility: EligibilityResult
 ): MatchResult {
   const factors: FactorDef[] = [];

@@ -369,16 +369,65 @@ export interface TalentProfile {
 // --- saved searches ---
 // A named filter watched for newly posted listings — matched against every
 // new listing at creation time (see routes/company.ts), not by a polling
-// job. The filter shape is a subset of Browse's own client-side filters:
-// only the structural fields a listing can be checked against without an
-// applicant profile (eligibility/match still need one, so those stay out).
+// job. The filter shape is a subset of Browse's own filters: only the
+// structural fields a listing can be checked against without an applicant
+// profile (eligibility/match still need one, so those stay out).
 
 export interface SavedSearchFilters {
   query: string;
+  countries: CountryCode[];
+  // City names as Browse shows them — the first part of a listing's
+  // location ("Munich" from "Munich, Bavaria, Germany").
+  cities: string[];
+  // The language a posting is written in (Listing.language).
+  languages: string[];
   workArrangements: WorkArrangement[];
   durations: InternshipLength[];
   fieldOfStudy: FieldOfStudy | "";
-  country: CountryCode | "";
+}
+
+// --- browse search ---
+// Browse filters, sorts and pages on the server (see
+// services/listingSearch.ts): the filter fields a saved search stores,
+// plus the ones that need the viewer's own profile.
+
+export type ListingSort = "match" | "newest" | "deadline" | "company";
+
+export interface ListingSearchQuery extends SavedSearchFilters {
+  directOnly: boolean;
+  eligibleOnly: boolean;
+  sort: ListingSort;
+  page: number;
+}
+
+export interface FacetCount {
+  value: string;
+  count: number;
+}
+
+// How many listings each filter option would leave, given every other
+// active filter — so Browse can show "Germany (28)" and hide options that
+// would return nothing.
+export interface ListingFacets {
+  countries: FacetCount[];
+  cities: (FacetCount & { country: CountryCode | null })[];
+  languages: FacetCount[];
+  workArrangements: FacetCount[];
+  durations: FacetCount[];
+  fieldsOfStudy: FacetCount[];
+  direct: number;
+  eligible: number;
+}
+
+// A Browse result card — everything but the (long) description.
+export type ListingSummary = Omit<ListingWithComputed, "description">;
+
+export interface ListingSearchResult {
+  items: ListingSummary[];
+  total: number;
+  page: number;
+  pageSize: number;
+  facets: ListingFacets;
 }
 
 export interface SavedSearch {

@@ -4,16 +4,20 @@ import { api } from "../api/client";
 import { ListingCard } from "../components/ListingCard";
 import { ApplyModal } from "../components/ApplyModal";
 import { BellIcon } from "../components/icons";
+import { useReferenceData } from "../context/ReferenceData";
+import { browseUrlFor } from "../lib/browseQuery";
 import type { ListingWithComputed, SavedSearch } from "../types/domain";
 
-function describeFilters(filters: SavedSearch["filters"]): string {
+function describeFilters(filters: SavedSearch["filters"], countryName: (code: string) => string): string {
   const parts: string[] = [];
   if (filters.query) parts.push(`"${filters.query}"`);
+  parts.push(...filters.countries.map(countryName));
+  parts.push(...filters.cities);
+  parts.push(...filters.languages.map((l) => `in ${l}`));
   parts.push(...filters.workArrangements);
   parts.push(...filters.durations);
   if (filters.fieldOfStudy) parts.push(filters.fieldOfStudy);
-  if (filters.country) parts.push(filters.country);
-  return parts.length > 0 ? parts.join(" · ") : "All new listings";
+  return parts.length > 0 ? parts.join(", ") : "All new listings";
 }
 
 export function Saved() {
@@ -21,6 +25,9 @@ export function Saved() {
   const [searches, setSearches] = useState<SavedSearch[] | null>(null);
   const [applying, setApplying] = useState<ListingWithComputed | null>(null);
   const [justApplied, setJustApplied] = useState<string | null>(null);
+  const { reference } = useReferenceData();
+  const countryName = (code: string) =>
+    reference?.regions.flatMap((r) => r.countries).find((c) => c.code === code)?.name ?? code;
 
   useEffect(() => {
     api.getSavedListings().then(setListings);
@@ -61,11 +68,16 @@ export function Saved() {
                     <BellIcon />
                     {search.name}
                   </h3>
-                  <span className="company">{describeFilters(search.filters)}</span>
+                  <span className="company">{describeFilters(search.filters, countryName)}</span>
                 </div>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeSearch(search)}>
-                  Remove
-                </button>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Link to={browseUrlFor(search.filters)} className="btn btn-secondary btn-sm">
+                    Open
+                  </Link>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeSearch(search)}>
+                    Remove
+                  </button>
+                </div>
               </div>
             ))}
           </div>
