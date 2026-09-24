@@ -1,0 +1,27 @@
+name: Daily listing sync
+
+# Pulls the previous 24 hours of new internships from Active Jobs DB via
+# POST /api/admin/sync-listings (backend/src/routes/admin.ts). The feed's
+# own docs recommend its 24h window at the same hour every day, so that
+# consecutive runs neither overlap nor leave gaps.
+#
+# Off until the repository variable LISTING_SYNC_ENABLED is set to "true"
+# (Settings > Secrets and variables > Actions > Variables): on RapidAPI's
+# free plan (25 requests/month) a daily run would exhaust the quota within
+# days. Enable it once the paid plan is active.
+on:
+  schedule:
+    - cron: "0 3 * * *" # 03:00 UTC daily
+  workflow_dispatch:
+
+jobs:
+  sync:
+    if: vars.LISTING_SYNC_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger sync
+        env:
+          SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
+        run: |
+          curl --fail-with-body -sS --max-time 600 -X POST https://api.internez.eu/api/admin/sync-listings \
+            -H "X-Sync-Key: $SYNC_SECRET" -H "Content-Type: application/json" -d '{}'

@@ -279,8 +279,22 @@ await pool.query(`
   -- this safe to run on every boot, same as the CREATE statements above.
   ALTER TABLE listings ADD COLUMN IF NOT EXISTS language TEXT NOT NULL DEFAULT 'English';
   ALTER TABLE listings ADD COLUMN IF NOT EXISTS apply_url TEXT NOT NULL DEFAULT '';
+  -- When a sourced listing stops being shown on Browse (ISO timestamp; NULL
+  -- = never, which is every direct listing). Expired rows are hidden, not
+  -- deleted: applications and saved_listings reference listings with no
+  -- ON DELETE CASCADE, and an applicant's Applications page should still be
+  -- able to show a listing they applied to after it closed.
+  ALTER TABLE listings ADD COLUMN IF NOT EXISTS expires_at TEXT;
+
+  -- One-time retirement of the hand-picked Greenhouse/Lever employer list,
+  -- replaced by the Active Jobs DB feed (which covers those same ATSs).
+  -- Idempotent: once set, expires_at is no longer NULL so this matches
+  -- nothing on later boots.
+  UPDATE listings SET expires_at = '2026-09-24T00:00:00.000Z'
+    WHERE (id LIKE 'gh:%' OR id LIKE 'lever:%') AND expires_at IS NULL;
 
   CREATE INDEX IF NOT EXISTS idx_listings_company ON listings(company_id);
+  CREATE INDEX IF NOT EXISTS idx_listings_expires ON listings(expires_at);
   CREATE INDEX IF NOT EXISTS idx_applications_applicant ON applications(applicant_id);
   CREATE INDEX IF NOT EXISTS idx_applications_listing ON applications(listing_id);
   CREATE INDEX IF NOT EXISTS idx_conversations_applicant ON conversations(applicant_id);

@@ -354,8 +354,13 @@ export const db = {
 
   // --- listings ---
 
+  // Browse only — expired sourced listings drop out here, but getListing
+  // still returns them, so a listing someone applied to or saved stays
+  // viewable after it closes.
   async listListings(): Promise<Listing[]> {
-    const { rows } = await pool.query(`SELECT * FROM listings`);
+    const { rows } = await pool.query(`SELECT * FROM listings WHERE expires_at IS NULL OR expires_at > $1`, [
+      new Date().toISOString(),
+    ]);
     return rows.map(listingFromRow);
   },
 
@@ -420,8 +425,9 @@ export const db = {
   async upsertSourcedListing(
     id: string,
     companyId: string,
-    input: Omit<Listing, "id" | "companyId" | "createdAt">
-  ): Promise<Listing> {
+    input: Omit<Listing, "id" | "companyId" | "createdAt">,
+    expiresAt: string
+  ): Promise<void> {
     const existing = await db.getListing(id);
     const createdAt = existing?.createdAt ?? new Date().toISOString();
     await pool.query(
@@ -429,9 +435,10 @@ export const db = {
         id, company_id, created_at, title, location, country, origin, department, work_arrangement,
         required_education_level, duration, start_date, start_label, end_label, compensation,
         application_deadline, description, requirements, skills, target_fields, required_languages,
-        industries, preferred_qualifications, eligibility, extra_questions, language, apply_url
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)
+        industries, preferred_qualifications, eligibility, extra_questions, language, apply_url, expires_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
       ON CONFLICT (id) DO UPDATE SET
+        expires_at=excluded.expires_at,
         company_id=excluded.company_id, title=excluded.title, location=excluded.location,
         country=excluded.country, origin=excluded.origin, department=excluded.department,
         work_arrangement=excluded.work_arrangement, required_education_level=excluded.required_education_level,
@@ -442,9 +449,23 @@ export const db = {
         required_languages=excluded.required_languages, industries=excluded.industries,
         preferred_qualifications=excluded.preferred_qualifications, eligibility=excluded.eligibility,
         extra_questions=excluded.extra_questions, language=excluded.language, apply_url=excluded.apply_url`,
-      listingParams(id, companyId, createdAt, input)
+      [...listingParams(id, companyId, createdAt, input), expiresAt]
     );
-    return (await db.getListing(id))!;
+  },
+
+  // The same internship posted once per city (common — see the Active Jobs
+  // DB docs' own dedup advice) shows up as several distinct source ids with
+  // an identical company + title. Only still-visible rows count, so a
+  // repost after the original expired isn't wrongly treated as a duplicate.
+  async hasVisibleDuplicateListing(companyId: string, title: string, excludeId: string): Promise<boolean> {
+    const { rows } = await pool.query(
+      `SELECT 1 FROM listings
+       WHERE company_id = $1 AND lower(title) = lower($2) AND id <> $3
+         AND (expires_at IS NULL OR expires_at > $4)
+       LIMIT 1`,
+      [companyId, title, excludeId, new Date().toISOString()]
+    );
+    return rows.length > 0;
   },
 
   // --- companies ---
