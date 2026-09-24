@@ -162,6 +162,7 @@ messagesRouter.post("/conversations/:id/interviews", writeLimiter, async (req, r
     type: "interview_proposed",
     title: "Interview proposed",
     body: `A new interview time was proposed: ${formatScheduledAt(proposal.scheduledAt)}.`,
+    params: { scheduledAt: proposal.scheduledAt },
     link: `/messages?c=${conversation.id}`,
   });
 
@@ -216,6 +217,7 @@ messagesRouter.post("/conversations/:id/interviews/:proposalId/respond", async (
       type: "interview_responded",
       title: response === "accepted" ? "Interview accepted" : "Interview declined",
       body: `Your proposed interview for ${formatScheduledAt(updated.scheduledAt)} was ${response}.`,
+      params: { response, scheduledAt: updated.scheduledAt },
       link: `/messages?c=${conversation.id}`,
     });
   }

@@ -184,6 +184,7 @@ function notificationFromRow(row: any): Notification {
     type: row.type,
     title: row.title,
     body: row.body,
+    params: row.params ? JSON.parse(row.params) : null,
     link: row.link,
     createdAt: row.created_at,
     readAt: row.read_at,
@@ -975,16 +976,39 @@ export const db = {
     type: NotificationType;
     title: string;
     body: string;
+    params?: Record<string, string>;
     link?: string | null;
   }): Promise<Notification> {
     const id = randomUUID();
     const createdAt = new Date().toISOString();
+    const params = input.params ?? null;
     await pool.query(
-      `INSERT INTO notifications (id, user_id, role, type, title, body, link, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [id, input.userId, input.role, input.type, input.title, input.body, input.link ?? null, createdAt]
+      `INSERT INTO notifications (id, user_id, role, type, title, body, params, link, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [
+        id,
+        input.userId,
+        input.role,
+        input.type,
+        input.title,
+        input.body,
+        params ? JSON.stringify(params) : null,
+        input.link ?? null,
+        createdAt,
+      ]
     );
-    return { id, userId: input.userId, role: input.role, type: input.type, title: input.title, body: input.body, link: input.link ?? null, createdAt, readAt: null };
+    return {
+      id,
+      userId: input.userId,
+      role: input.role,
+      type: input.type,
+      title: input.title,
+      body: input.body,
+      params,
+      link: input.link ?? null,
+      createdAt,
+      readAt: null,
+    };
   },
 
   async listNotifications(userId: string, role: UserRole, limit = 30): Promise<Notification[]> {

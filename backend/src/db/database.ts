@@ -285,6 +285,9 @@ await pool.query(`
   -- ON DELETE CASCADE, and an applicant's Applications page should still be
   -- able to show a listing they applied to after it closed.
   ALTER TABLE listings ADD COLUMN IF NOT EXISTS expires_at TEXT;
+  -- JSON: the values a notification's text is built from, so it can be
+  -- shown in the reader's language (see Notification.params).
+  ALTER TABLE notifications ADD COLUMN IF NOT EXISTS params TEXT;
 
   -- One-time retirement of the hand-picked Greenhouse/Lever employer list,
   -- replaced by the Active Jobs DB feed (which covers those same ATSs).

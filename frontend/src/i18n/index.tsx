@@ -16,17 +16,48 @@ import {
 } from "react";
 import { en, type MessageKey, type Messages, type Plural } from "./messages/en";
 import { detectLocale, LOCALE_STORAGE_KEY, type Locale } from "./locales";
+import type { ReferenceCatalog, ReferenceKind } from "./reference/values";
 
 type Params = Record<string, string | number>;
 
-const LOADERS: Record<Locale, () => Promise<Messages>> = {
-  en: async () => en,
-  de: () => import("./messages/de").then((m) => m.de),
-  fr: () => import("./messages/fr").then((m) => m.fr),
-  it: () => import("./messages/it").then((m) => m.it),
-  nl: () => import("./messages/nl").then((m) => m.nl),
-  es: () => import("./messages/es").then((m) => m.es),
-  pl: () => import("./messages/pl").then((m) => m.pl),
+interface Catalog {
+  messages: Messages;
+  // null for English: reference values are already English.
+  reference: ReferenceCatalog | null;
+}
+
+const LOADERS: Record<Locale, () => Promise<Catalog>> = {
+  en: async () => ({ messages: en, reference: null }),
+  de: () =>
+    Promise.all([import("./messages/de"), import("./reference/de")]).then(([m, r]) => ({
+      messages: m.de,
+      reference: r.deReference,
+    })),
+  fr: () =>
+    Promise.all([import("./messages/fr"), import("./reference/fr")]).then(([m, r]) => ({
+      messages: m.fr,
+      reference: r.frReference,
+    })),
+  it: () =>
+    Promise.all([import("./messages/it"), import("./reference/it")]).then(([m, r]) => ({
+      messages: m.it,
+      reference: r.itReference,
+    })),
+  nl: () =>
+    Promise.all([import("./messages/nl"), import("./reference/nl")]).then(([m, r]) => ({
+      messages: m.nl,
+      reference: r.nlReference,
+    })),
+  es: () =>
+    Promise.all([import("./messages/es"), import("./reference/es")]).then(([m, r]) => ({
+      messages: m.es,
+      reference: r.esReference,
+    })),
+  pl: () =>
+    Promise.all([import("./messages/pl"), import("./reference/pl")]).then(([m, r]) => ({
+      messages: m.pl,
+      reference: r.plReference,
+    })),
 };
 
 // The app's language values are English names (Listing.language and the
@@ -55,6 +86,10 @@ interface I18nValue {
   formatNumber: (value: number) => string;
   countryName: (code: string) => string;
   languageName: (englishName: string) => string;
+  // A value from the app's reference lists (a field of study, an
+  // interest, ...) in the interface language; the English value itself
+  // when there's no translation for it.
+  ref: (kind: ReferenceKind, value: string) => string;
 }
 
 const I18nContext = createContext<I18nValue | null>(null);
@@ -75,14 +110,14 @@ function stripTags(text: string): string {
 }
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<{ locale: Locale; messages: Messages } | null>(null);
+  const [state, setState] = useState<({ locale: Locale } & Catalog) | null>(null);
 
   const load = useCallback((locale: Locale) => {
     LOADERS[locale]()
-      .then((messages) => setState({ locale, messages }))
+      .then((catalog) => setState({ locale, ...catalog }))
       // A language chunk that fails to load (offline, a deploy replaced it)
       // falls back to English rather than leaving the app blank.
-      .catch(() => setState({ locale: "en", messages: en }));
+      .catch(() => setState({ locale: "en", messages: en, reference: null }));
   }, []);
 
   useEffect(() => load(detectLocale()), [load]);
@@ -105,7 +140,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo((): I18nValue | null => {
     if (!state) return null;
-    const { locale, messages } = state;
+    const { locale, messages, reference } = state;
     const numberFormat = new Intl.NumberFormat(locale);
     const plurals = new Intl.PluralRules(locale);
     const formatNumber = (n: number) => numberFormat.format(n);
@@ -139,6 +174,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
         const code = LANGUAGE_CODES[englishName];
         return (code && languages?.of(code)) || englishName;
       },
+      ref: (kind, value) => (reference?.[kind] as Record<string, string> | undefined)?.[value] ?? value,
     };
   }, [state, setLocale]);
 

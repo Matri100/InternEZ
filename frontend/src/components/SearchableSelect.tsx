@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { useI18n } from "../i18n";
 
 interface Props {
   options: string[];
@@ -16,6 +17,7 @@ interface Props {
  * text isn't allowed (e.g. picking a university from a fixed list).
  */
 export function SearchableSelect({ options, value, onChange, placeholder, disabled, disabledHint }: Props) {
+  const { t } = useI18n();
   const [query, setQuery] = useState(value);
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
@@ -71,7 +73,7 @@ export function SearchableSelect({ options, value, onChange, placeholder, disabl
         <input
           className="input"
           value={query}
-          placeholder={placeholder ?? "Search…"}
+          placeholder={placeholder ?? t("picker.search")}
           role="combobox"
           aria-expanded={open}
           aria-autocomplete="list"
@@ -108,7 +110,7 @@ export function SearchableSelect({ options, value, onChange, placeholder, disabl
         )}
         {open && filtered.length === 0 && (
           <div className="searchable-select-dropdown">
-            <div className="searchable-select-empty">No matches</div>
+            <div className="searchable-select-empty">{t("picker.noMatches")}</div>
           </div>
         )}
       </div>

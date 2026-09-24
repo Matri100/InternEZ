@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import type { Notification } from "../types/domain";
 import { useI18n } from "../i18n";
+import { notificationText } from "../lib/notificationText";
 import { BellIcon } from "./icons";
 
 // "now", "5 min. ago", "3 days ago" in the interface language.
@@ -27,6 +28,8 @@ export function NotificationBell() {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const navigate = useNavigate();
   const { t, locale, formatDate } = useI18n();
+  const formatTime = (iso: string) =>
+    formatDate(new Date(iso), { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
   const loadCount = useCallback(() => {
     api.getUnreadNotificationCount().then(setCount).catch(() => {});
@@ -107,18 +110,21 @@ export function NotificationBell() {
           <div className="notification-panel-list">
             {!notifications && <p className="notification-empty">{t("common.loading")}</p>}
             {notifications && notifications.length === 0 && <p className="notification-empty">{t("notifications.empty")}</p>}
-            {notifications?.map((n) => (
-              <button
-                type="button"
-                key={n.id}
-                className={`notification-item ${n.readAt ? "" : "unread"}`}
-                onClick={() => openNotification(n)}
-              >
-                <span className="notification-item-title">{n.title}</span>
-                <span className="notification-item-body">{n.body}</span>
-                <span className="notification-item-time">{timeAgo(n.createdAt, locale, formatDate)}</span>
-              </button>
-            ))}
+            {notifications?.map((n) => {
+              const text = notificationText(n, t, formatTime);
+              return (
+                <button
+                  type="button"
+                  key={n.id}
+                  className={`notification-item ${n.readAt ? "" : "unread"}`}
+                  onClick={() => openNotification(n)}
+                >
+                  <span className="notification-item-title">{text.title}</span>
+                  <span className="notification-item-body">{text.body}</span>
+                  <span className="notification-item-time">{timeAgo(n.createdAt, locale, formatDate)}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

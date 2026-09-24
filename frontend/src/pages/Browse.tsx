@@ -48,7 +48,7 @@ function capitalize(text: string): string {
 
 export function Browse() {
   const { profile, loading: profileLoading } = useAppData();
-  const { t, countryName, languageName } = useI18n();
+  const { t, ref, countryName, languageName } = useI18n();
   const cityName = useCityName();
   const [searchParams, setSearchParams] = useSearchParams();
   const state = useMemo(() => readBrowseState(searchParams), [searchParams]);
@@ -196,7 +196,7 @@ export function Browse() {
     })),
     ...state.durations.map((d) => ({ key: `dur-${d}`, label: t(`duration.${d}`), remove: () => toggleIn("durations", d) })),
     ...(state.fieldOfStudy
-      ? [{ key: "field", label: state.fieldOfStudy, remove: () => update({ fieldOfStudy: "" }) }]
+      ? [{ key: "field", label: ref("field", state.fieldOfStudy), remove: () => update({ fieldOfStudy: "" }) }]
       : []),
     ...(state.directOnly
       ? [{ key: "direct", label: t("browse.directChip"), remove: () => update({ directOnly: false }) }]
@@ -296,6 +296,7 @@ export function Browse() {
                 options={facets.fieldsOfStudy}
                 selected={state.fieldOfStudy ? [state.fieldOfStudy] : []}
                 onToggle={(v) => update({ fieldOfStudy: state.fieldOfStudy === v ? "" : v })}
+                label={(v) => ref("field", v)}
                 searchPlaceholder={t("browse.findField")}
               />
               <fieldset className="facet">

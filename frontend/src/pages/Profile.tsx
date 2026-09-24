@@ -15,6 +15,8 @@ import { MonthYearPicker } from "../components/MonthYearPicker";
 import { ExtensionSection } from "../components/ExtensionSection";
 import { VoluntaryDisclosuresSection } from "../components/VoluntaryDisclosuresSection";
 import { AccountSection } from "../components/AccountSection";
+import { useI18n } from "../i18n";
+import { errorText } from "../i18n/errors";
 import type {
   Applicant,
   CertificationEntry,
@@ -81,6 +83,7 @@ export function Profile() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const { t, ref, countryName, locale } = useI18n();
 
   useEffect(() => {
     if (profile) setForm(structuredClone(profile));
@@ -89,7 +92,7 @@ export function Profile() {
   if (loading || !form || !reference) {
     return (
       <div className="page page-narrow">
-        <p style={{ color: "var(--text-secondary)" }}>Loading…</p>
+        <p style={{ color: "var(--text-secondary)" }}>{t("common.loading")}</p>
       </div>
     );
   }
@@ -187,7 +190,7 @@ export function Profile() {
       setSaved(true);
       if (andBrowse) navigate("/browse");
     } catch (e) {
-      setSaveError(e instanceof Error ? e.message : "Couldn't save your profile");
+      setSaveError(e instanceof Error && e.message ? errorText(e, t) : t("profile.saveError"));
     } finally {
       setSaving(false);
     }
@@ -195,8 +198,10 @@ export function Profile() {
 
   const lengths: InternshipLength[] = reference.internshipLengths;
   const countryOptions = reference.regions.map((region) => ({
-    category: region.name,
-    options: region.countries.map((c) => ({ value: c.code, label: c.name })),
+    category: ref("region", region.name),
+    options: region.countries
+      .map((c) => ({ value: c.code, label: countryName(c.code) }))
+      .sort((a, b) => a.label.localeCompare(b.label, locale)),
   }));
   const skillGroupOptions = reference.skillGroups.map((g) => ({ category: g.category, options: g.skills }));
 
@@ -204,11 +209,8 @@ export function Profile() {
     <div className="page page-narrow">
       <div className="page-header">
         <div>
-          <h1>Your profile</h1>
-          <p>
-            Fill this out once. It's what powers eligibility checks and match scores across every listing — no
-            re-entering the same details for each application.
-          </p>
+          <h1>{t("profile.title")}</h1>
+          <p>{t("profile.intro")}</p>
         </div>
       </div>
 
@@ -221,15 +223,15 @@ export function Profile() {
         <section className="form-section">
           <div className="form-section-header">
             <span className="form-section-number">01</span>
-            <h2>Contact</h2>
+            <h2>{t("profile.sectionContact")}</h2>
           </div>
           <div className="field-row">
             <div className="field">
-              <label htmlFor="name">Full name</label>
+              <label htmlFor="name">{t("profile.fullName")}</label>
               <input id="name" className="input" value={form.name} onChange={(e) => set("name", e.target.value)} />
             </div>
             <div className="field">
-              <label htmlFor="email">Email</label>
+              <label htmlFor="email">{t("profile.email")}</label>
               <input
                 id="email"
                 type="email"
@@ -241,11 +243,11 @@ export function Profile() {
           </div>
           <div className="field-row">
             <div className="field">
-              <label htmlFor="phone">Phone</label>
+              <label htmlFor="phone">{t("profile.phone")}</label>
               <input id="phone" className="input" value={form.phone} onChange={(e) => set("phone", e.target.value)} />
             </div>
             <div className="field">
-              <label htmlFor="portfolio">Portfolio / LinkedIn URL</label>
+              <label htmlFor="portfolio">{t("profile.portfolio")}</label>
               <input
                 id="portfolio"
                 className="input"
@@ -260,18 +262,18 @@ export function Profile() {
         <section className="form-section">
           <div className="form-section-header">
             <span className="form-section-number">02</span>
-            <h2>Eligibility background</h2>
-            <span className="field-hint">Replaces a manual work-permit question — we derive it from this</span>
+            <h2>{t("profile.sectionEligibility")}</h2>
+            <span className="field-hint">{t("profile.sectionEligibilityHint")}</span>
           </div>
           <div className="field-row">
             <CountrySelect
-              label="Citizenship"
+              label={t("profile.citizenship")}
               value={form.citizenship}
               onChange={(v) => set("citizenship", v)}
               reference={reference}
             />
             <CountrySelect
-              label="Second citizenship (optional)"
+              label={t("profile.secondCitizenship")}
               value={form.secondCitizenship}
               onChange={(v) => set("secondCitizenship", v)}
               reference={reference}
@@ -279,32 +281,31 @@ export function Profile() {
           </div>
           <div className="field-row">
             <CountrySelect
-              label="Place of birth"
+              label={t("profile.placeOfBirth")}
               value={form.placeOfBirth}
               onChange={(v) => set("placeOfBirth", v)}
               reference={reference}
             />
             <CountrySelect
-              label="Current residence"
+              label={t("profile.residence")}
               value={form.residence}
               onChange={(v) => set("residence", v)}
               reference={reference}
             />
           </div>
           <p className="field-hint">
-            InternEZ covers the EU/EEA (and Switzerland) exclusively, for now. Dual citizens: either citizenship
-            counts toward eligibility — you don't need to pick the "better" one.
+            {t("profile.eligibilityNote")}
           </p>
         </section>
 
         <section className="form-section">
           <div className="form-section-header">
             <span className="form-section-number">03</span>
-            <h2>Education</h2>
+            <h2>{t("profile.sectionEducation")}</h2>
           </div>
           {form.education.length === 0 && (
             <p className="field-hint" style={{ marginBottom: 12 }}>
-              Add at least one entry — high school counts if that's where you are.
+              {t("profile.educationEmpty")}
             </p>
           )}
           {form.education.map((entry) => (
@@ -319,15 +320,15 @@ export function Profile() {
             />
           ))}
           <button type="button" className="btn btn-secondary btn-sm" onClick={addEducation}>
-            + Add education entry
+            {t("profile.addEducation")}
           </button>
         </section>
 
         <section className="form-section">
           <div className="form-section-header">
             <span className="form-section-number">04</span>
-            <h2>Work experience</h2>
-            <span className="field-hint">Optional — internships, part-time roles, research assistantships</span>
+            <h2>{t("profile.sectionWork")}</h2>
+            <span className="field-hint">{t("profile.sectionWorkHint")}</span>
           </div>
           {form.workExperience.map((entry, i) => (
             <WorkEntryForm
@@ -341,15 +342,15 @@ export function Profile() {
             />
           ))}
           <button type="button" className="btn btn-secondary btn-sm" onClick={addWork}>
-            + Add work experience
+            {t("profile.addWork")}
           </button>
         </section>
 
         <section className="form-section">
           <div className="form-section-header">
             <span className="form-section-number">05</span>
-            <h2>Projects</h2>
-            <span className="field-hint">Optional — course projects, side projects, competitions</span>
+            <h2>{t("profile.sectionProjects")}</h2>
+            <span className="field-hint">{t("profile.sectionProjectsHint")}</span>
           </div>
           {form.projects.map((entry, i) => (
             <ProjectEntryForm
@@ -362,15 +363,15 @@ export function Profile() {
             />
           ))}
           <button type="button" className="btn btn-secondary btn-sm" onClick={addProject}>
-            + Add project
+            {t("profile.addProject")}
           </button>
         </section>
 
         <section className="form-section">
           <div className="form-section-header">
             <span className="form-section-number">06</span>
-            <h2>Certifications</h2>
-            <span className="field-hint">Optional — named credentials, not general qualifications</span>
+            <h2>{t("profile.sectionCertifications")}</h2>
+            <span className="field-hint">{t("profile.sectionCertificationsHint")}</span>
           </div>
           {form.certifications.map((entry, i) => (
             <CertificationEntryForm
@@ -382,61 +383,62 @@ export function Profile() {
             />
           ))}
           <button type="button" className="btn btn-secondary btn-sm" onClick={addCertification}>
-            + Add certification
+            {t("profile.addCertification")}
           </button>
         </section>
 
         <section className="form-section">
           <div className="form-section-header">
             <span className="form-section-number">07</span>
-            <h2>Availability &amp; preferences</h2>
+            <h2>{t("profile.sectionAvailability")}</h2>
           </div>
           <div className="field-row">
             <div className="field">
-              <label>Available from</label>
+              <label>{t("profile.availableFrom")}</label>
               <MonthYearPicker value={form.availableFrom} onChange={(v) => set("availableFrom", v)} />
             </div>
             <div className="field">
-              <label htmlFor="preferredLength">Preferred internship length</label>
+              <label htmlFor="preferredLength">{t("profile.preferredLength")}</label>
               <select
                 id="preferredLength"
                 className="input"
                 value={form.preferredLength ?? ""}
                 onChange={(e) => set("preferredLength", (e.target.value || null) as InternshipLength | null)}
               >
-                <option value="">Select length</option>
+                <option value="">{t("profile.selectLength")}</option>
                 {lengths.map((l) => (
                   <option key={l} value={l}>
-                    {l}
+                    {t(`duration.${l}`)}
                   </option>
                 ))}
               </select>
             </div>
           </div>
           <div className="field">
-            <label>Work arrangement preference</label>
+            <label>{t("profile.workArrangementPref")}</label>
             <ChipGroup
               options={reference.workArrangementPreferences}
               selected={form.workArrangementPreference}
               onToggle={(v) => toggleWorkArrangement(v as WorkArrangementPreference)}
+              label={(v) => t(`arrangement.${v as WorkArrangementPreference}`)}
             />
           </div>
           <div className="field">
-            <label>Preferred locations</label>
+            <label>{t("profile.preferredLocations")}</label>
             <SearchableMultiSelect
               groups={countryOptions}
               selected={form.preferredLocations}
               onChange={(v) => set("preferredLocations", v as CountryCode[])}
-              placeholder="Search countries…"
+              placeholder={t("profile.searchCountries")}
             />
-            <span className="field-hint">Leave empty if you're open to anywhere in our current coverage.</span>
+            <span className="field-hint">{t("profile.preferredLocationsHint")}</span>
           </div>
         </section>
 
         <section className="form-section">
           <div className="form-section-header">
             <span className="form-section-number">08</span>
-            <h2>Languages</h2>
+            <h2>{t("profile.sectionLanguages")}</h2>
           </div>
           <LanguageProficiencyEditor
             value={form.languages}
@@ -449,36 +451,38 @@ export function Profile() {
         <section className="form-section">
           <div className="form-section-header">
             <span className="form-section-number">09</span>
-            <h2>Skills</h2>
-            <span className="field-hint">Search to add — organized by domain</span>
+            <h2>{t("profile.sectionSkills")}</h2>
+            <span className="field-hint">{t("profile.sectionSkillsHint")}</span>
           </div>
           <SearchableMultiSelect
             groups={skillGroupOptions}
             selected={form.skills}
             onChange={(v) => set("skills", v)}
-            placeholder="Search skills…"
+            placeholder={t("profile.searchSkills")}
           />
         </section>
 
         <section className="form-section">
           <div className="form-section-header">
             <span className="form-section-number">10</span>
-            <h2>Career interests &amp; qualifications</h2>
+            <h2>{t("profile.sectionInterests")}</h2>
           </div>
           <div className="field">
-            <label>Industries / career interests</label>
+            <label>{t("profile.interests")}</label>
             <ChipGroup
               options={reference.interests}
               selected={form.interests}
               onToggle={(v) => toggleListItem("interests", v)}
+              label={(v) => ref("interest", v)}
             />
           </div>
           <div className="field">
-            <label>Qualifications</label>
+            <label>{t("profile.qualifications")}</label>
             <ChipGroup
               options={reference.qualifications}
               selected={form.qualifications}
               onToggle={(v) => toggleListItem("qualifications", v)}
+              label={(v) => ref("qualification", v)}
             />
           </div>
         </section>
@@ -486,8 +490,8 @@ export function Profile() {
         <section className="form-section">
           <div className="form-section-header">
             <span className="form-section-number">11</span>
-            <h2>Files</h2>
-            <span className="field-hint">ID photo, transcript, or other supporting documents</span>
+            <h2>{t("profile.sectionFiles")}</h2>
+            <span className="field-hint">{t("profile.sectionFilesHint")}</span>
           </div>
           <DocumentsEditor value={form.documents} kinds={reference.documentKinds} onChange={(v) => set("documents", v)} />
         </section>
@@ -495,8 +499,8 @@ export function Profile() {
         <section className="form-section">
           <div className="form-section-header">
             <span className="form-section-number">12</span>
-            <h2>Summary</h2>
-            <span className="field-hint">A few sentences — optional but helps employers get a sense of you</span>
+            <h2>{t("profile.sectionSummary")}</h2>
+            <span className="field-hint">{t("profile.sectionSummaryHint")}</span>
           </div>
           <div className="field">
             <textarea
@@ -504,7 +508,7 @@ export function Profile() {
               rows={4}
               value={form.summary}
               onChange={(e) => set("summary", e.target.value)}
-              placeholder="Briefly, who are you? What are you studying, what are you looking for in an internship, and what makes you a good fit?"
+              placeholder={t("profile.summaryPlaceholder")}
             />
           </div>
         </section>
@@ -512,15 +516,14 @@ export function Profile() {
         <section className="form-section">
           <div className="form-section-header">
             <span className="form-section-number">13</span>
-            <h2>Cover letter prompts</h2>
-            <span className="field-hint">Optional — answer once, in your own words</span>
+            <h2>{t("profile.sectionPrompts")}</h2>
+            <span className="field-hint">{t("profile.sectionPromptsHint")}</span>
           </div>
           <p className="field-hint" style={{ maxWidth: "60ch", marginBottom: "var(--space-4)" }}>
-            These aren't shown to employers directly. They're source material — so that whenever a listing needs
-            a cover letter or an open-ended answer, there's something real to work from instead of a blank page.
+            {t("profile.promptsIntro")}
           </p>
           <div className="field">
-            <label htmlFor="promptWhyField">What draws you to this field, and why internships right now?</label>
+            <label htmlFor="promptWhyField">{t("profile.promptWhyField")}</label>
             <textarea
               id="promptWhyField"
               className="input"
@@ -530,9 +533,7 @@ export function Profile() {
             />
           </div>
           <div className="field">
-            <label htmlFor="promptStrength">
-              Tell us about a project, achievement, or experience you're proud of.
-            </label>
+            <label htmlFor="promptStrength">{t("profile.promptStrength")}</label>
             <textarea
               id="promptStrength"
               className="input"
@@ -542,7 +543,7 @@ export function Profile() {
             />
           </div>
           <div className="field">
-            <label htmlFor="promptStyle">How would you describe how you work, or what you bring to a team?</label>
+            <label htmlFor="promptStyle">{t("profile.promptStyle")}</label>
             <textarea
               id="promptStyle"
               className="input"
@@ -552,7 +553,7 @@ export function Profile() {
             />
           </div>
           <div className="field">
-            <label htmlFor="promptGoals">What are you hoping to get out of an internship at this stage?</label>
+            <label htmlFor="promptGoals">{t("profile.promptGoals")}</label>
             <textarea
               id="promptGoals"
               className="input"
@@ -566,8 +567,8 @@ export function Profile() {
         <section className="form-section">
           <div className="form-section-header">
             <span className="form-section-number">14</span>
-            <h2>Visibility</h2>
-            <span className="field-hint">Off by default</span>
+            <h2>{t("profile.sectionVisibility")}</h2>
+            <span className="field-hint">{t("profile.sectionVisibilityHint")}</span>
           </div>
           <label className="present-toggle" style={{ fontSize: 14, fontWeight: 500, color: "var(--text)" }}>
             <input
@@ -575,25 +576,24 @@ export function Profile() {
               checked={form.discoverable}
               onChange={(e) => set("discoverable", e.target.checked)}
             />
-            Let companies discover my profile
+            {t("profile.discoverable")}
           </label>
           <p className="field-hint" style={{ marginTop: 6, maxWidth: "56ch" }}>
-            When on, companies can find you in talent search and reach out about roles — even ones you haven't
-            applied to. Your contact details are only shared once you reply.
+            {t("profile.discoverableHint")}
           </p>
         </section>
 
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <button type="submit" className="btn btn-secondary" disabled={saving}>
-            {saving ? "Saving…" : "Save profile"}
+            {saving ? t("common.saving") : t("profile.save")}
           </button>
           <button type="button" className="btn btn-primary" onClick={() => save(true)} disabled={saving}>
-            Save and browse listings
+            {t("profile.saveAndBrowse")}
           </button>
-          {saved && <span style={{ fontSize: 13, color: "var(--ok)" }}>Saved</span>}
+          {saved && <span style={{ fontSize: 13, color: "var(--ok)" }}>{t("profile.saved")}</span>}
           {saveError && <span style={{ fontSize: 13, color: "var(--blocked)" }}>{saveError}</span>}
           <Link to="/profile/resume" className="btn btn-ghost" style={{ marginLeft: "auto" }}>
-            Download resume (PDF)
+            {t("profile.downloadResume")}
           </Link>
         </div>
       </form>
@@ -621,6 +621,7 @@ function CountrySelect({
   onChange: (v: CountryCode | null) => void;
   reference: { regions: { code: string; name: string; countries: { code: string; name: string }[] }[] };
 }) {
+  const { t, ref, countryName, locale } = useI18n();
   return (
     <div className="field">
       <label>{label}</label>
@@ -629,14 +630,17 @@ function CountrySelect({
         value={value ?? ""}
         onChange={(e) => onChange((e.target.value || null) as CountryCode | null)}
       >
-        <option value="">Select country</option>
+        <option value="">{t("profile.selectCountry")}</option>
         {reference.regions.map((region) => (
-          <optgroup key={region.code} label={region.name}>
-            {region.countries.map((c) => (
-              <option key={c.code} value={c.code}>
-                {c.name}
-              </option>
-            ))}
+          <optgroup key={region.code} label={ref("region", region.name)}>
+            {region.countries
+              .map((c) => ({ code: c.code, name: countryName(c.code) }))
+              .sort((a, b) => a.name.localeCompare(b.name, locale))
+              .map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.name}
+                </option>
+              ))}
           </optgroup>
         ))}
       </select>

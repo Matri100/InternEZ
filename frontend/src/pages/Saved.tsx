@@ -14,7 +14,7 @@ function describeFilters(
   i18n: ReturnType<typeof useI18n>,
   cityName: (city: string) => string
 ): string {
-  const { t, countryName, languageName } = i18n;
+  const { t, ref, countryName, languageName } = i18n;
   const parts: string[] = [];
   if (filters.query) parts.push(`"${filters.query}"`);
   parts.push(...filters.countries.map(countryName));
@@ -22,7 +22,7 @@ function describeFilters(
   parts.push(...filters.languages.map((l) => t("browse.chipPostedIn", { language: languageName(l) })));
   parts.push(...filters.workArrangements.map((w) => t(`arrangement.${w}`)));
   parts.push(...filters.durations.map((d) => t(`duration.${d}`)));
-  if (filters.fieldOfStudy) parts.push(filters.fieldOfStudy);
+  if (filters.fieldOfStudy) parts.push(ref("field", filters.fieldOfStudy));
   return parts.length > 0 ? parts.join(", ") : t("saved.allNew");
 }
 
