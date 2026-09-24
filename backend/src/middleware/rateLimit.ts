@@ -20,7 +20,7 @@ export const writeLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: keyByUser,
-  message: { error: "Too many requests — please slow down and try again in a moment." },
+  message: { error: "Too many requests — please slow down and try again in a moment.", code: "rateLimited" },
 });
 
 // Login/signup had no rate limit at all before this — unlimited password
@@ -36,7 +36,7 @@ export const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: keyByUser,
-  message: { error: "Too many attempts — please wait a few minutes and try again." },
+  message: { error: "Too many attempts — please wait a few minutes and try again.", code: "rateLimited" },
 });
 
 // The early-access page-load check (GET /early-access/status). Its own,
@@ -52,5 +52,5 @@ export const accessCheckLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: keyByUser,
-  message: { error: "Too many requests — please slow down and try again in a moment." },
+  message: { error: "Too many requests — please slow down and try again in a moment.", code: "rateLimited" },
 });

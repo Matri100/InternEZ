@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { LanguageMenu } from "../components/LanguageMenu";
+import { T, useI18n } from "../i18n";
+import { errorText } from "../i18n/errors";
 
 const DEMO_APPLICANT = { email: "demo.applicant@internez.eu", password: "Demo1234!" };
 const DEMO_COMPANY = { email: "demo.company@internez.eu", password: "Demo1234!" };
@@ -12,6 +15,7 @@ export function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const { t } = useI18n();
 
   async function doLogin(creds: { email: string; password: string }) {
     setError(null);
@@ -20,7 +24,7 @@ export function Login() {
       const user = await login(creds.email, creds.password);
       navigate(user.role === "company" ? "/company" : "/browse");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(errorText(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -28,13 +32,16 @@ export function Login() {
 
   return (
     <div className="auth-page">
+      <div className="corner-controls">
+        <LanguageMenu />
+      </div>
       <Link to="/" className="wordmark">
         Intern<span>EZ</span>
       </Link>
 
       <div className="auth-card form-section">
-        <p className="eyebrow">Welcome back</p>
-        <h1 style={{ marginBottom: 20 }}>Log in</h1>
+        <p className="eyebrow">{t("auth.loginEyebrow")}</p>
+        <h1 style={{ marginBottom: 20 }}>{t("auth.loginTitle")}</h1>
 
         <form
           onSubmit={(e) => {
@@ -43,7 +50,7 @@ export function Login() {
           }}
         >
           <div className="field">
-            <label htmlFor="email">Email</label>
+            <label htmlFor="email">{t("auth.email")}</label>
             <input
               id="email"
               type="email"
@@ -55,7 +62,7 @@ export function Login() {
             />
           </div>
           <div className="field">
-            <label htmlFor="password">Password</label>
+            <label htmlFor="password">{t("auth.password")}</label>
             <input
               id="password"
               type="password"
@@ -69,23 +76,25 @@ export function Login() {
 
           <p style={{ textAlign: "right", marginBottom: 16 }}>
             <Link to="/forgot-password" style={{ fontSize: 13 }}>
-              Forgot password?
+              {t("auth.forgotLink")}
             </Link>
           </p>
 
           {error && <p style={{ color: "var(--blocked)", fontSize: 13, marginBottom: 16 }}>{error}</p>}
 
           <button type="submit" className="btn btn-primary" style={{ width: "100%" }} disabled={submitting}>
-            {submitting ? "Logging in…" : "Log in"}
+            {submitting ? t("auth.loggingIn") : t("auth.logIn")}
           </button>
         </form>
 
         <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 16, textAlign: "center" }}>
-          New here? <Link to="/signup">Create an account</Link>
+          <T k="auth.newHere" tags={{ link: <Link to="/signup" /> }} />
         </p>
 
         <div className="auth-demo">
-          <p className="field-hint" style={{ marginBottom: 10 }}>Or explore with a pre-filled demo account</p>
+          <p className="field-hint" style={{ marginBottom: 10 }}>
+            {t("auth.demoHint")}
+          </p>
           <div style={{ display: "flex", gap: 8 }}>
             <button
               type="button"
@@ -94,7 +103,7 @@ export function Login() {
               onClick={() => doLogin(DEMO_APPLICANT)}
               disabled={submitting}
             >
-              Demo applicant
+              {t("auth.demoApplicant")}
             </button>
             <button
               type="button"
@@ -103,7 +112,7 @@ export function Login() {
               onClick={() => doLogin(DEMO_COMPANY)}
               disabled={submitting}
             >
-              Demo company
+              {t("auth.demoCompany")}
             </button>
           </div>
         </div>

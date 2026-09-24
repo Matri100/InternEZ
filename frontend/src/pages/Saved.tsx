@@ -4,20 +4,21 @@ import { api } from "../api/client";
 import { ListingCard } from "../components/ListingCard";
 import { ApplyModal } from "../components/ApplyModal";
 import { BellIcon } from "../components/icons";
-import { useReferenceData } from "../context/ReferenceData";
 import { browseUrlFor } from "../lib/browseQuery";
+import { useI18n } from "../i18n";
 import type { ListingWithComputed, SavedSearch } from "../types/domain";
 
-function describeFilters(filters: SavedSearch["filters"], countryName: (code: string) => string): string {
+function describeFilters(filters: SavedSearch["filters"], i18n: ReturnType<typeof useI18n>): string {
+  const { t, countryName, languageName } = i18n;
   const parts: string[] = [];
   if (filters.query) parts.push(`"${filters.query}"`);
   parts.push(...filters.countries.map(countryName));
   parts.push(...filters.cities);
-  parts.push(...filters.languages.map((l) => `in ${l}`));
-  parts.push(...filters.workArrangements);
-  parts.push(...filters.durations);
+  parts.push(...filters.languages.map((l) => t("browse.chipPostedIn", { language: languageName(l) })));
+  parts.push(...filters.workArrangements.map((w) => t(`arrangement.${w}`)));
+  parts.push(...filters.durations.map((d) => t(`duration.${d}`)));
   if (filters.fieldOfStudy) parts.push(filters.fieldOfStudy);
-  return parts.length > 0 ? parts.join(", ") : "All new listings";
+  return parts.length > 0 ? parts.join(", ") : t("saved.allNew");
 }
 
 export function Saved() {
@@ -25,9 +26,8 @@ export function Saved() {
   const [searches, setSearches] = useState<SavedSearch[] | null>(null);
   const [applying, setApplying] = useState<ListingWithComputed | null>(null);
   const [justApplied, setJustApplied] = useState<string | null>(null);
-  const { reference } = useReferenceData();
-  const countryName = (code: string) =>
-    reference?.regions.flatMap((r) => r.countries).find((c) => c.code === code)?.name ?? code;
+  const i18n = useI18n();
+  const { t } = i18n;
 
   useEffect(() => {
     api.getSavedListings().then(setListings);
@@ -52,14 +52,14 @@ export function Saved() {
     <div className="page">
       <div className="page-header">
         <div>
-          <h1>Saved</h1>
-          <p>Listings you've bookmarked, and searches you're watching for new matches.</p>
+          <h1>{t("saved.title")}</h1>
+          <p>{t("saved.subtitle")}</p>
         </div>
       </div>
 
       {searches && searches.length > 0 && (
         <section style={{ marginBottom: "var(--space-7)" }}>
-          <h2 style={{ fontSize: 16, marginBottom: "var(--space-3)" }}>Saved searches</h2>
+          <h2 style={{ fontSize: 16, marginBottom: "var(--space-3)" }}>{t("saved.searches")}</h2>
           <div className="application-list">
             {searches.map((search) => (
               <div className="application-row" key={search.id} style={{ padding: "var(--space-4) var(--space-5)" }}>
@@ -68,14 +68,14 @@ export function Saved() {
                     <BellIcon />
                     {search.name}
                   </h3>
-                  <span className="company">{describeFilters(search.filters, countryName)}</span>
+                  <span className="company">{describeFilters(search.filters, i18n)}</span>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <Link to={browseUrlFor(search.filters)} className="btn btn-secondary btn-sm">
-                    Open
+                    {t("common.open")}
                   </Link>
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeSearch(search)}>
-                    Remove
+                    {t("common.remove")}
                   </button>
                 </div>
               </div>
@@ -84,18 +84,16 @@ export function Saved() {
         </section>
       )}
 
-      <h2 style={{ fontSize: 16, marginBottom: "var(--space-3)" }}>Saved listings</h2>
+      <h2 style={{ fontSize: 16, marginBottom: "var(--space-3)" }}>{t("saved.listings")}</h2>
 
-      {!listings && <p style={{ color: "var(--text-secondary)" }}>Loading…</p>}
+      {!listings && <p style={{ color: "var(--text-secondary)" }}>{t("common.loading")}</p>}
 
       {listings && listings.length === 0 && (
         <div className="empty-state">
-          <h3>Nothing saved yet</h3>
-          <p style={{ marginBottom: 16 }}>
-            Tap the bookmark icon on a listing while browsing to keep it here.
-          </p>
+          <h3>{t("saved.emptyTitle")}</h3>
+          <p style={{ marginBottom: 16 }}>{t("saved.emptyBody")}</p>
           <Link to="/browse" className="btn btn-primary">
-            Browse listings
+            {t("common.browseListings")}
           </Link>
         </div>
       )}
@@ -105,7 +103,7 @@ export function Saved() {
           <ListingCard listing={listing} onApply={() => setApplying(listing)} onToggleSave={() => unsave(listing)} />
           {justApplied === listing.id && (
             <p style={{ fontSize: 13, color: "var(--ok)", marginTop: -8, marginBottom: 16 }}>
-              Application submitted.
+              {t("common.applicationSubmitted")}
             </p>
           )}
         </div>

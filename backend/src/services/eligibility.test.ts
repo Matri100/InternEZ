@@ -54,6 +54,7 @@ describe("computeEligibility", () => {
     it("is blocked when citizenship doesn't match", () => {
       const result = computeEligibility(makeApplicant({ citizenship: "FR" }), { citizenOnly: "DE" });
       expect(result.level).toBe("blocked");
+      expect(result.reason).toEqual({ code: "citizenOnlyBlocked", country: "DE" });
     });
 
     it("is ok when the SECOND citizenship matches, not just the first", () => {
@@ -95,6 +96,8 @@ describe("computeEligibility", () => {
         { allowedRegions: ["EU"] }
       );
       expect(result.level).toBe("review");
+      // The frontend words this in the interface language from these fields.
+      expect(result.reason).toEqual({ code: "pathway", via: "education", institution: "TU Berlin", country: "DE" });
     });
 
     it("is blocked when nothing in the profile connects to the region", () => {

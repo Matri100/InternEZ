@@ -2,18 +2,20 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import type { Notification } from "../types/domain";
+import { useI18n } from "../i18n";
 import { BellIcon } from "./icons";
 
-function timeAgo(iso: string): string {
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const minutes = Math.floor(diffMs / 60000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
+// "now", "5 min. ago", "3 days ago" in the interface language.
+function timeAgo(iso: string, locale: string, formatDate: (date: Date, options: Intl.DateTimeFormatOptions) => string): string {
+  const relative = new Intl.RelativeTimeFormat(locale, { numeric: "auto", style: "short" });
+  const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (minutes < 1) return relative.format(0, "second");
+  if (minutes < 60) return relative.format(-minutes, "minute");
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return relative.format(-hours, "hour");
   const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  if (days < 7) return relative.format(-days, "day");
+  return formatDate(new Date(iso), { month: "short", day: "numeric" });
 }
 
 // Polling, same as messages/unread-count — no push channel behind this app.
@@ -24,6 +26,7 @@ export function NotificationBell() {
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const navigate = useNavigate();
+  const { t, locale, formatDate } = useI18n();
 
   const loadCount = useCallback(() => {
     api.getUnreadNotificationCount().then(setCount).catch(() => {});
@@ -82,28 +85,28 @@ export function NotificationBell() {
         type="button"
         className="icon-btn notification-bell-btn"
         onClick={() => setOpen((v) => !v)}
-        aria-label="Notifications"
+        aria-label={t("notifications.title")}
         aria-haspopup="true"
         aria-expanded={open}
-        title="Notifications"
+        title={t("notifications.title")}
       >
         <BellIcon />
         {count > 0 && <span className="notification-count">{count > 9 ? "9+" : count}</span>}
       </button>
 
       {open && (
-        <div className="notification-panel card" role="dialog" aria-label="Notifications">
+        <div className="notification-panel card" role="dialog" aria-label={t("notifications.title")}>
           <div className="notification-panel-header">
-            <span>Notifications</span>
+            <span>{t("notifications.title")}</span>
             {notifications && notifications.some((n) => !n.readAt) && (
               <button type="button" className="btn btn-ghost btn-sm" onClick={markAllRead}>
-                Mark all read
+                {t("notifications.markAllRead")}
               </button>
             )}
           </div>
           <div className="notification-panel-list">
-            {!notifications && <p className="notification-empty">Loading…</p>}
-            {notifications && notifications.length === 0 && <p className="notification-empty">No notifications.</p>}
+            {!notifications && <p className="notification-empty">{t("common.loading")}</p>}
+            {notifications && notifications.length === 0 && <p className="notification-empty">{t("notifications.empty")}</p>}
             {notifications?.map((n) => (
               <button
                 type="button"
@@ -113,7 +116,7 @@ export function NotificationBell() {
               >
                 <span className="notification-item-title">{n.title}</span>
                 <span className="notification-item-body">{n.body}</span>
-                <span className="notification-item-time">{timeAgo(n.createdAt)}</span>
+                <span className="notification-item-time">{timeAgo(n.createdAt, locale, formatDate)}</span>
               </button>
             ))}
           </div>

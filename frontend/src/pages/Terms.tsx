@@ -1,8 +1,13 @@
 import { Link } from "react-router-dom";
+import { LanguageMenu } from "../components/LanguageMenu";
+import { useI18n } from "../i18n";
 
 const EFFECTIVE_DATE = "21 September 2026";
 
+// Legal text stays in English only — a machine translation shouldn't be
+// what anyone relies on. Other languages get a note saying so.
 export function Terms() {
+  const { t, locale } = useI18n();
   return (
     <div className="landing">
       <header className="landing-header">
@@ -12,8 +17,9 @@ export function Terms() {
           </Link>
           <div className="landing-header-actions">
             <Link to="/" className="landing-header-link">
-              Back to home
+              {t("legal.backHome")}
             </Link>
+            <LanguageMenu />
           </div>
         </div>
       </header>
@@ -21,6 +27,11 @@ export function Terms() {
       <section className="legal-page">
         <h1>Terms of Service</h1>
         <p className="legal-updated">Effective {EFFECTIVE_DATE}</p>
+        {locale !== "en" && (
+          <p className="banner" lang={locale}>
+            {t("common.englishOnly")}
+          </p>
+        )}
 
         <p>
           These terms cover your use of internez.eu and the Envoy browser extension (together, "InternEZ"). By

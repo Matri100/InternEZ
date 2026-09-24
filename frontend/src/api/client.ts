@@ -33,12 +33,27 @@ import type {
 // production build actually runs (the Pages build step, not the browser).
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
+// `code` is set when the server gave one (see backend routes/auth.ts), or
+// "network" when the request never got a response — so pages can show the
+// message in the visitor's language (i18n "apiError.*" keys).
+export class ApiError extends Error {
+  constructor(message: string, readonly code?: string) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    ...init,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      ...init,
+    });
+  } catch (err) {
+    throw new ApiError(err instanceof Error ? err.message : "Network error", "network");
+  }
   // A session that's missing or expired self-heals by bouncing to the
   // login page, rather than leaving whatever page made the request stuck.
   // /auth/* routes report their own failures (e.g. wrong password) inline
@@ -56,11 +71,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       window.location.reload();
       return new Promise<T>(() => {});
     }
-    throw new Error(body.error ?? `Request failed: ${res.status}`);
+    throw new ApiError(body.error ?? `Request failed: ${res.status}`, body.code);
   }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.error ?? `Request failed: ${res.status}`);
+    throw new ApiError(body.error ?? `Request failed: ${res.status}`, body.code);
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;

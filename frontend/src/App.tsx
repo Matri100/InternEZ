@@ -27,12 +27,15 @@ import { TalentBrowse } from "./pages/TalentBrowse";
 import { CompanyAnalytics } from "./pages/CompanyAnalytics";
 import { NotificationBell } from "./components/NotificationBell";
 import { EarlyAccessGate } from "./components/EarlyAccessGate";
+import { LanguageMenu } from "./components/LanguageMenu";
 import { LogOutIcon, MoonIcon, SunIcon } from "./components/icons";
+import { useI18n } from "./i18n";
 
 function PageLoading() {
+  const { t } = useI18n();
   return (
     <div className="page">
-      <p style={{ color: "var(--text-secondary)" }}>Loading…</p>
+      <p style={{ color: "var(--text-secondary)" }}>{t("common.loading")}</p>
     </div>
   );
 }
@@ -81,6 +84,8 @@ function TopBar() {
   const isCompany = user?.role === "company";
   const navigate = useNavigate();
   const unread = useUnreadMessages();
+  const { t } = useI18n();
+  const navClass = ({ isActive }: { isActive: boolean }) => `nav-link ${isActive ? "active" : ""}`;
 
   async function handleLogout() {
     await logout();
@@ -96,40 +101,41 @@ function TopBar() {
         <nav className="nav">
           {isCompany ? (
             <>
-              <NavLink to="/company" end className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
-                Profile
+              <NavLink to="/company" end className={navClass}>
+                {t("nav.profile")}
               </NavLink>
-              <NavLink to="/company/listings" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
-                Listings
+              <NavLink to="/company/listings" className={navClass}>
+                {t("nav.listings")}
               </NavLink>
-              <NavLink to="/company/applicants" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
-                Applicants
+              <NavLink to="/company/applicants" className={navClass}>
+                {t("nav.applicants")}
               </NavLink>
-              <NavLink to="/company/talent" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
-                Talent
+              <NavLink to="/company/talent" className={navClass}>
+                {t("nav.talent")}
               </NavLink>
-              <NavLink to="/company/analytics" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
-                Analytics
+              <NavLink to="/company/analytics" className={navClass}>
+                {t("nav.analytics")}
               </NavLink>
             </>
           ) : (
             <>
-              <NavLink to="/profile" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
-                Profile
+              <NavLink to="/profile" className={navClass}>
+                {t("nav.profile")}
               </NavLink>
-              <NavLink to="/browse" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
-                Browse
+              <NavLink to="/browse" className={navClass}>
+                {t("nav.browse")}
               </NavLink>
-              <NavLink to="/saved" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
-                Saved
+              <NavLink to="/saved" className={navClass}>
+                {t("nav.saved")}
               </NavLink>
-              <NavLink to="/applications" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
-                Applications
+              <NavLink to="/applications" className={navClass}>
+                {t("nav.applications")}
               </NavLink>
             </>
           )}
-          <NavLink to="/messages" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
-            Messages{unread > 0 && <span className="unread-dot" style={{ marginLeft: 6 }} />}
+          <NavLink to="/messages" className={navClass}>
+            {t("nav.messages")}
+            {unread > 0 && <span className="unread-dot" style={{ marginLeft: 6 }} />}
           </NavLink>
         </nav>
         <div className="topbar-controls">
@@ -137,12 +143,19 @@ function TopBar() {
             {user?.email}
           </span>
           <NotificationBell />
-          <button type="button" className="icon-btn" onClick={toggle} aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"} title={theme === "light" ? "Dark mode" : "Light mode"}>
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={toggle}
+            aria-label={theme === "light" ? t("nav.switchToDark") : t("nav.switchToLight")}
+            title={theme === "light" ? t("nav.darkMode") : t("nav.lightMode")}
+          >
             {theme === "light" ? <MoonIcon /> : <SunIcon />}
           </button>
-          <button type="button" className="icon-btn" onClick={handleLogout} aria-label="Log out" title="Log out">
+          <button type="button" className="icon-btn" onClick={handleLogout} aria-label={t("nav.logOut")} title={t("nav.logOut")}>
             <LogOutIcon />
           </button>
+          <LanguageMenu />
         </div>
       </div>
     </header>

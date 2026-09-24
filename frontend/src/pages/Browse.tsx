@@ -2,7 +2,6 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
 import { useAppData } from "../context/AppData";
-import { useReferenceData } from "../context/ReferenceData";
 import { ListingCard } from "../components/ListingCard";
 import { ApplyModal } from "../components/ApplyModal";
 import { FacetList } from "../components/browse/FacetList";
@@ -17,29 +16,37 @@ import {
   type BrowseState,
   type ListFilterKey,
 } from "../lib/browseQuery";
-import type { CountryCode, ListingSearchResult, ListingSort, ListingSummary } from "../types/domain";
+import { T, useI18n } from "../i18n";
+import type { MessageKey } from "../i18n/messages/en";
+import type { ListingSearchResult, ListingSort, ListingSummary } from "../types/domain";
 
 const EuropeMap = lazy(() => import("../components/browse/EuropeMap"));
 
-const SORT_LABELS: Record<ListingSort, string> = {
-  match: "Best match",
-  deadline: "Deadline (soonest)",
-  newest: "Newest",
-  company: "Company (A–Z)",
+const SORT_LABELS: Record<ListingSort, MessageKey> = {
+  match: "browse.sortMatch",
+  deadline: "browse.sortDeadline",
+  newest: "browse.sortNewest",
+  company: "browse.sortCompany",
 };
 
 const SEARCH_DEBOUNCE_MS = 300;
 
-function greeting(): string {
+function greeting(): MessageKey {
   const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
-  return "Good evening";
+  if (hour < 12) return "browse.goodMorning";
+  if (hour < 18) return "browse.goodAfternoon";
+  return "browse.goodEvening";
+}
+
+// Language names come lower-case in some languages ("allemand"); as a
+// list option they start with a capital.
+function capitalize(text: string): string {
+  return text.charAt(0).toLocaleUpperCase() + text.slice(1);
 }
 
 export function Browse() {
   const { profile, loading: profileLoading } = useAppData();
-  const { reference } = useReferenceData();
+  const { t, countryName, languageName } = useI18n();
   const [searchParams, setSearchParams] = useSearchParams();
   const state = useMemo(() => readBrowseState(searchParams), [searchParams]);
 
@@ -101,11 +108,6 @@ export function Browse() {
     setSearchInput((typed) => (typed.trim() === state.query.trim() ? typed : state.query));
   }, [state.query]);
 
-  const countryNames = useMemo(
-    () => new Map((reference?.regions ?? []).flatMap((r) => r.countries).map((c) => [c.code, c.name])),
-    [reference]
-  );
-  const countryName = useCallback((code: string) => countryNames.get(code as CountryCode) ?? code, [countryNames]);
   const countryCounts = useMemo(
     () => new Map((result?.facets.countries ?? []).map((f) => [f.value, f.count])),
     [result]
@@ -162,10 +164,10 @@ export function Browse() {
     return (
       <div className="page">
         <div className="empty-state">
-          <h3>Save your profile first</h3>
-          <p style={{ marginBottom: 16 }}>Browse and match scores need a saved profile to work from.</p>
+          <h3>{t("browse.profileFirstTitle")}</h3>
+          <p style={{ marginBottom: 16 }}>{t("browse.profileFirstBody")}</p>
           <Link to="/profile" className="btn btn-primary">
-            Go to profile
+            {t("browse.goToProfile")}
           </Link>
         </div>
       </div>
@@ -179,22 +181,34 @@ export function Browse() {
   const chips: { key: string; label: string; remove: () => void }[] = [
     ...state.countries.map((c) => ({ key: `country-${c}`, label: countryName(c), remove: () => toggleIn("countries", c) })),
     ...state.cities.map((c) => ({ key: `city-${c}`, label: c, remove: () => toggleIn("cities", c) })),
-    ...state.languages.map((l) => ({ key: `lang-${l}`, label: `In ${l}`, remove: () => toggleIn("languages", l) })),
-    ...state.workArrangements.map((w) => ({ key: `wa-${w}`, label: w, remove: () => toggleIn("workArrangements", w) })),
-    ...state.durations.map((d) => ({ key: `dur-${d}`, label: d, remove: () => toggleIn("durations", d) })),
+    ...state.languages.map((l) => ({
+      key: `lang-${l}`,
+      label: t("browse.chipPostedIn", { language: languageName(l) }),
+      remove: () => toggleIn("languages", l),
+    })),
+    ...state.workArrangements.map((w) => ({
+      key: `wa-${w}`,
+      label: t(`arrangement.${w}`),
+      remove: () => toggleIn("workArrangements", w),
+    })),
+    ...state.durations.map((d) => ({ key: `dur-${d}`, label: t(`duration.${d}`), remove: () => toggleIn("durations", d) })),
     ...(state.fieldOfStudy
       ? [{ key: "field", label: state.fieldOfStudy, remove: () => update({ fieldOfStudy: "" }) }]
       : []),
-    ...(state.directOnly ? [{ key: "direct", label: "Direct-posted", remove: () => update({ directOnly: false }) }] : []),
-    ...(state.eligibleOnly ? [{ key: "eligible", label: "Eligible only", remove: () => update({ eligibleOnly: false }) }] : []),
+    ...(state.directOnly
+      ? [{ key: "direct", label: t("browse.directChip"), remove: () => update({ directOnly: false }) }]
+      : []),
+    ...(state.eligibleOnly
+      ? [{ key: "eligible", label: t("browse.eligibleChip"), remove: () => update({ eligibleOnly: false }) }]
+      : []),
   ];
 
   return (
     <div className="page page-wide">
       <div className="page-header">
         <div>
-          <p className="eyebrow">{greeting()}</p>
-          <h1>{profile?.name || "Welcome back"}</h1>
+          <p className="eyebrow">{t(greeting())}</p>
+          <h1>{profile?.name || t("browse.welcomeBack")}</h1>
         </div>
       </div>
 
@@ -203,7 +217,7 @@ export function Browse() {
           <SearchIcon />
           <input
             type="search"
-            placeholder="Search role, company, city, skills…"
+            placeholder={t("browse.searchPlaceholder")}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
           />
@@ -214,8 +228,8 @@ export function Browse() {
           onClick={() => setShowFilters((v) => !v)}
           aria-expanded={showFilters}
           aria-controls="browse-filters"
-          aria-label="Filters"
-          title="Filters"
+          aria-label={t("browse.filters")}
+          title={t("browse.filters")}
         >
           <FilterIcon />
           {filterCount > 0 && <span className="search-filter-count">{filterCount}</span>}
@@ -223,59 +237,66 @@ export function Browse() {
       </div>
 
       <div className="browse-layout">
-        <aside id="browse-filters" className={`browse-sidebar ${showFilters ? "open" : ""}`} aria-label="Filters">
+        <aside
+          id="browse-filters"
+          className={`browse-sidebar ${showFilters ? "open" : ""}`}
+          aria-label={t("browse.filters")}
+        >
           {facets && (
             <>
               <FacetList
-                title="Country"
+                title={t("browse.facetCountry")}
                 options={facets.countries}
                 selected={state.countries}
                 onToggle={(v) => toggleIn("countries", v)}
                 label={countryName}
-                searchPlaceholder="Find a country"
+                searchPlaceholder={t("browse.findCountry")}
               />
               <FacetList
-                title="City"
+                title={t("browse.facetCity")}
                 options={facets.cities}
                 selected={state.cities}
                 onToggle={(v) => toggleIn("cities", v)}
-                searchPlaceholder="Find a city"
+                searchPlaceholder={t("browse.findCity")}
               />
               <FacetList
-                title="Posted in"
+                title={t("browse.facetPostedIn")}
                 options={facets.languages}
                 selected={state.languages}
                 onToggle={(v) => toggleIn("languages", v)}
+                label={(v) => capitalize(languageName(v))}
                 action={
                   spokenLanguages.length > 0 && (
                     <button type="button" className="facet-action" onClick={() => update({ languages: spokenLanguages })}>
-                      Languages I speak
+                      {t("browse.languagesISpeak")}
                     </button>
                   )
                 }
               />
               <FacetList
-                title="Work arrangement"
+                title={t("browse.facetArrangement")}
                 options={facets.workArrangements}
                 selected={state.workArrangements}
                 onToggle={(v) => toggleIn("workArrangements", v)}
+                label={(v) => t(`arrangement.${v}` as MessageKey)}
               />
               <FacetList
-                title="Duration"
+                title={t("browse.facetDuration")}
                 options={facets.durations}
                 selected={state.durations}
                 onToggle={(v) => toggleIn("durations", v)}
+                label={(v) => t(`duration.${v}` as MessageKey)}
               />
               <FacetList
-                title="Field of study"
+                title={t("browse.facetField")}
                 options={facets.fieldsOfStudy}
                 selected={state.fieldOfStudy ? [state.fieldOfStudy] : []}
                 onToggle={(v) => update({ fieldOfStudy: state.fieldOfStudy === v ? "" : v })}
-                searchPlaceholder="Find a field"
+                searchPlaceholder={t("browse.findField")}
               />
               <fieldset className="facet">
                 <div className="facet-head">
-                  <legend>Show only</legend>
+                  <legend>{t("browse.facetShowOnly")}</legend>
                 </div>
                 <ul className="facet-options">
                   <li>
@@ -285,7 +306,7 @@ export function Browse() {
                         checked={state.eligibleOnly}
                         onChange={() => update({ eligibleOnly: !state.eligibleOnly })}
                       />
-                      <span className="facet-label">Listings I'm eligible for</span>
+                      <span className="facet-label">{t("browse.onlyEligible")}</span>
                       <span className="facet-count">{facets.eligible}</span>
                     </label>
                   </li>
@@ -297,7 +318,7 @@ export function Browse() {
                           checked={state.directOnly}
                           onChange={() => update({ directOnly: !state.directOnly })}
                         />
-                        <span className="facet-label">Posted directly on InternEZ</span>
+                        <span className="facet-label">{t("browse.onlyDirect")}</span>
                         <span className="facet-count">{facets.direct}</span>
                       </label>
                     </li>
@@ -312,10 +333,7 @@ export function Browse() {
           <div ref={resultsTop} className="browse-results-head">
             <p className="browse-total">
               {result ? (
-                <>
-                  <strong>{result.total.toLocaleString("en-GB")}</strong>{" "}
-                  {result.total === 1 ? "internship" : "internships"}
-                </>
+                <T k="browse.total" params={{ count: result.total }} tags={{ b: <strong /> }} />
               ) : (
                 " "
               )}
@@ -327,13 +345,13 @@ export function Browse() {
                 aria-pressed={state.showMap}
                 onClick={() => setSearchParams(writeBrowseState({ ...state, showMap: !state.showMap }), { replace: true })}
               >
-                {state.showMap ? "Hide map" : "Show map"}
+                {state.showMap ? t("browse.hideMap") : t("browse.showMap")}
               </button>
               {savingSearch ? (
                 <span className="browse-save-search">
                   <input
                     className="input"
-                    placeholder="Name this search"
+                    placeholder={t("browse.nameSearch")}
                     value={savedSearchName}
                     onChange={(e) => setSavedSearchName(e.target.value)}
                     autoFocus
@@ -344,22 +362,22 @@ export function Browse() {
                     onClick={saveCurrentSearch}
                     disabled={savingSearchBusy || !savedSearchName.trim()}
                   >
-                    {savingSearchBusy ? "Saving…" : "Save"}
+                    {savingSearchBusy ? t("common.saving") : t("common.save")}
                   </button>
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSavingSearch(false)}>
-                    Cancel
+                    {t("common.cancel")}
                   </button>
                 </span>
               ) : savedSearchConfirmed ? (
-                <span className="browse-save-confirmed">Search saved — we'll notify you of new matches.</span>
+                <span className="browse-save-confirmed">{t("browse.searchSaved")}</span>
               ) : (
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSavingSearch(true)}>
                   <BellIcon />
-                  Save this search
+                  {t("browse.saveSearch")}
                 </button>
               )}
               <label className="sort-control">
-                <span>Sort</span>
+                <span>{t("browse.sort")}</span>
                 <select
                   className="input"
                   value={state.sort}
@@ -367,7 +385,7 @@ export function Browse() {
                 >
                   {(Object.keys(SORT_LABELS) as ListingSort[]).map((key) => (
                     <option key={key} value={key}>
-                      {SORT_LABELS[key]}
+                      {t(SORT_LABELS[key])}
                     </option>
                   ))}
                 </select>
@@ -376,22 +394,22 @@ export function Browse() {
           </div>
 
           {chips.length > 0 && (
-            <div className="active-filters" aria-label="Active filters">
+            <div className="active-filters" aria-label={t("browse.activeFilters")}>
               {chips.map((chip) => (
                 <button type="button" key={chip.key} className="active-filter" onClick={chip.remove}>
                   {chip.label}
                   <span aria-hidden="true">×</span>
-                  <span className="visually-hidden">Remove filter</span>
+                  <span className="visually-hidden">{t("browse.removeFilter")}</span>
                 </button>
               ))}
               <button type="button" className="btn btn-ghost btn-sm" onClick={clearFilters}>
-                Clear all
+                {t("browse.clearAll")}
               </button>
             </div>
           )}
 
           {state.showMap && (
-            <Suspense fallback={<div className="europe-map europe-map-loading">Loading map…</div>}>
+            <Suspense fallback={<div className="europe-map europe-map-loading">{t("browse.loadingMap")}</div>}>
               <EuropeMap
                 counts={countryCounts}
                 selected={state.countries}
@@ -403,17 +421,17 @@ export function Browse() {
 
           {loadError && (
             <div className="empty-state">
-              <h3>Listings couldn't be loaded</h3>
-              <p>Check your connection and try again.</p>
+              <h3>{t("browse.loadError")}</h3>
+              <p>{t("browse.loadErrorBody")}</p>
             </div>
           )}
 
-          {!result && loading && !loadError && <p className="browse-loading">Loading listings…</p>}
+          {!result && loading && !loadError && <p className="browse-loading">{t("browse.loadingListings")}</p>}
 
           {result && result.items.length === 0 && !loadError && (
             <div className="empty-state">
-              <h3>No listings match these filters</h3>
-              <p>Try removing a filter{state.query ? " or searching for something else" : ""}.</p>
+              <h3>{t("browse.noResults")}</h3>
+              <p>{state.query ? t("browse.noResultsBodyQuery") : t("browse.noResultsBody")}</p>
             </div>
           )}
 
@@ -427,7 +445,7 @@ export function Browse() {
                 />
                 {justApplied === listing.id && (
                   <p style={{ fontSize: 13, color: "var(--ok)", marginTop: -8, marginBottom: 16 }}>
-                    Application submitted.
+                    {t("common.applicationSubmitted")}
                   </p>
                 )}
               </div>

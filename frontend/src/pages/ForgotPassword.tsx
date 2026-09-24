@@ -1,12 +1,16 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
+import { LanguageMenu } from "../components/LanguageMenu";
+import { useI18n } from "../i18n";
+import { errorText } from "../i18n/errors";
 
 export function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useI18n();
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -16,7 +20,7 @@ export function ForgotPassword() {
       await api.forgotPassword(email);
       setSent(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(errorText(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -24,22 +28,25 @@ export function ForgotPassword() {
 
   return (
     <div className="auth-page">
+      <div className="corner-controls">
+        <LanguageMenu />
+      </div>
       <Link to="/" className="wordmark">
         Intern<span>EZ</span>
       </Link>
 
       <div className="auth-card form-section">
-        <p className="eyebrow">Reset your password</p>
-        <h1 style={{ marginBottom: 20 }}>Forgot password</h1>
+        <p className="eyebrow">{t("auth.resetEyebrow")}</p>
+        <h1 style={{ marginBottom: 20 }}>{t("auth.forgotTitle")}</h1>
 
         {sent ? (
           <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
-            If an account exists for that email, we've sent a link to reset your password. Check your inbox.
+            {t("auth.resetSent")}
           </p>
         ) : (
           <form onSubmit={handleSubmit}>
             <div className="field">
-              <label htmlFor="email">Email</label>
+              <label htmlFor="email">{t("auth.email")}</label>
               <input
                 id="email"
                 type="email"
@@ -55,13 +62,13 @@ export function ForgotPassword() {
             {error && <p style={{ color: "var(--blocked)", fontSize: 13, marginBottom: 16 }}>{error}</p>}
 
             <button type="submit" className="btn btn-primary" style={{ width: "100%" }} disabled={submitting}>
-              {submitting ? "Sending…" : "Send reset link"}
+              {submitting ? t("auth.sending") : t("auth.sendLink")}
             </button>
           </form>
         )}
 
         <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 16, textAlign: "center" }}>
-          <Link to="/login">Back to log in</Link>
+          <Link to="/login">{t("auth.backToLogin")}</Link>
         </p>
       </div>
     </div>

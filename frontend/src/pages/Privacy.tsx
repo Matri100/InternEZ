@@ -1,8 +1,13 @@
 import { Link } from "react-router-dom";
+import { LanguageMenu } from "../components/LanguageMenu";
+import { useI18n } from "../i18n";
 
 const EFFECTIVE_DATE = "21 September 2026";
 
+// Legal text stays in English only — a machine translation shouldn't be
+// what anyone relies on. Other languages get a note saying so.
 export function Privacy() {
+  const { t, locale } = useI18n();
   return (
     <div className="landing">
       <header className="landing-header">
@@ -12,8 +17,9 @@ export function Privacy() {
           </Link>
           <div className="landing-header-actions">
             <Link to="/" className="landing-header-link">
-              Back to home
+              {t("legal.backHome")}
             </Link>
+            <LanguageMenu />
           </div>
         </div>
       </header>
@@ -21,6 +27,11 @@ export function Privacy() {
       <section className="legal-page">
         <h1>Privacy policy</h1>
         <p className="legal-updated">Effective {EFFECTIVE_DATE}</p>
+        {locale !== "en" && (
+          <p className="banner" lang={locale}>
+            {t("common.englishOnly")}
+          </p>
+        )}
 
         <p>
           InternEZ ("we", "us") runs internez.eu, a platform for standardized internship applications across the

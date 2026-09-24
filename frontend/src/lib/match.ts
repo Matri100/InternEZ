@@ -1,3 +1,5 @@
+import type { MessageKey } from "../i18n/messages/en";
+
 export type MatchTier = "good" | "average" | "poor";
 
 export function matchTier(total: number): MatchTier {
@@ -6,12 +8,6 @@ export function matchTier(total: number): MatchTier {
   return "poor";
 }
 
-const MATCH_LABELS: Record<MatchTier, string> = {
-  good: "Good match",
-  average: "Average match",
-  poor: "Poor match",
-};
-
-export function matchLabel(total: number): string {
-  return MATCH_LABELS[matchTier(total)];
+export function matchLabel(total: number, t: (key: MessageKey) => string): string {
+  return t(`match.${matchTier(total)}`);
 }

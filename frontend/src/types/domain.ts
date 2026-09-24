@@ -211,9 +211,26 @@ export interface Listing {
 
 export type EligibilityLevel = "ok" | "review" | "blocked";
 
+// Mirrors backend — the reason as data, worded in the interface language
+// by lib/explanations.ts. `why` is the same in English.
+export interface EligibilityReason {
+  code:
+    | "citizenOnlyClearance"
+    | "citizenOnlyOk"
+    | "citizenOnlyBlocked"
+    | "noRestriction"
+    | "regionCitizenship"
+    | "pathway"
+    | "regionBlocked";
+  country?: CountryCode;
+  via?: "placeOfBirth" | "residence" | "education";
+  institution?: string;
+}
+
 export interface EligibilityResult {
   level: EligibilityLevel;
   why: string;
+  reason: EligibilityReason;
 }
 
 export interface MatchFactor {
@@ -228,6 +245,9 @@ export interface MatchResult {
   total: number;
   factors: MatchFactor[];
   explanation: string;
+  // Factor keys the explanation was built from.
+  strengths: string[];
+  gaps: string[];
 }
 
 export interface ListingWithComputed extends Listing {

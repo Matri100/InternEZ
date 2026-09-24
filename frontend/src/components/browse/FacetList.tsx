@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { FacetCount } from "../../types/domain";
+import { useI18n } from "../../i18n";
 
 const COLLAPSED_SIZE = 6;
 
@@ -27,6 +28,7 @@ export function FacetList({
 }) {
   const [expanded, setExpanded] = useState(false);
   const [search, setSearch] = useState("");
+  const { t } = useI18n();
 
   const visible = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -71,11 +73,11 @@ export function FacetList({
             </label>
           </li>
         ))}
-        {visible.length === 0 && <li className="facet-empty">No matches</li>}
+        {visible.length === 0 && <li className="facet-empty">{t("browse.facetNoMatches")}</li>}
       </ul>
       {collapsible && (
         <button type="button" className="facet-more" onClick={() => setExpanded((v) => !v)}>
-          {expanded ? "Show fewer" : `Show all ${visible.length}`}
+          {expanded ? t("browse.facetShowFewer") : t("browse.facetShowAll", { count: visible.length })}
         </button>
       )}
     </fieldset>
