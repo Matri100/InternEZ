@@ -17,13 +17,24 @@ export function EarlyAccessGate({ children }: { children: ReactNode }) {
   const [key, setKey] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [checkFailed, setCheckFailed] = useState(false);
 
-  useEffect(() => {
+  // A failed check (rate limited, server down, offline) is not a "no": it
+  // used to fall through to the key screen, so an already-authorized
+  // visitor was asked for the key again. It now says so and offers a retry.
+  function checkAccess() {
+    setCheckFailed(false);
+    setGranted(null);
     fetch(`${API_BASE}/early-access/status`, { credentials: "include" })
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error(`Status check failed: ${res.status}`);
+        return res.json();
+      })
       .then((data) => setGranted(Boolean(data.granted)))
-      .catch(() => setGranted(false));
-  }, []);
+      .catch(() => setCheckFailed(true));
+  }
+
+  useEffect(checkAccess, []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -46,6 +57,24 @@ export function EarlyAccessGate({ children }: { children: ReactNode }) {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (checkFailed) {
+    return (
+      <div className="gate-page">
+        <div className="gate-panel">
+          <span className="wordmark">
+            Intern<span>EZ</span>
+          </span>
+          <div className="gate-form">
+            <p className="gate-error">InternEZ couldn't be reached. Please try again in a moment.</p>
+            <button type="button" className="gate-submit" onClick={checkAccess}>
+              Try again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (granted === null) {

@@ -38,3 +38,19 @@ export const authLimiter = rateLimit({
   keyGenerator: keyByUser,
   message: { error: "Too many attempts — please wait a few minutes and try again." },
 });
+
+// The early-access page-load check (GET /early-access/status). Its own,
+// much looser bucket: it runs on every full page load, so sharing
+// authLimiter's 10 per 15 minutes — a bucket login, signup and unlock also
+// draw from — locked people out after about ten reloads, showing them the
+// key screen again and blocking their next login. It doesn't need
+// authLimiter's strictness either: every gated route already checks the
+// same cookie, unlimited, so this one adds no brute-force surface.
+export const accessCheckLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: keyByUser,
+  message: { error: "Too many requests — please slow down and try again in a moment." },
+});
