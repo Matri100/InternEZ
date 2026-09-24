@@ -12,8 +12,10 @@ describe("stripHtml", () => {
     // entity-encoded, "&lt;p&gt;" rather than "<p>", not real tags. This
     // caught a real bug: stripping tags before decoding entities left the
     // decoded tags in the final output instead of removing them.
+    // (That same whole-paragraph <strong> is also a section heading — see
+    // the heading tests below — hence the ** markers.)
     const raw = "&lt;p&gt;&lt;strong&gt;About the opportunity&lt;/strong&gt;&lt;/p&gt;";
-    expect(stripHtml(raw)).toBe("About the opportunity");
+    expect(stripHtml(raw)).toBe("**About the opportunity**");
   });
 
   it("decodes common entities and collapses whitespace", () => {
@@ -56,6 +58,27 @@ describe("stripHtml", () => {
     expect(stripHtml("<p><strong>Background:</strong></p><p>Some body text.</p>")).toBe(
       "**Background:**\n\nSome body text."
     );
+  });
+
+  it("marks real <h1>-<h6> headings the same way, flattened to one line", () => {
+    // Real feed markup (a SmartRecruiters posting via Active Jobs DB).
+    const html = "<h2 class=\"title\">Descrizione\n  dell&apos;azienda</h2><p>Testo.</p>";
+    expect(stripHtml(html)).toBe("**Descrizione dell'azienda**\n\nTesto.");
+  });
+
+  it("drops empty bold spacer paragraphs instead of leaving a stray '****'", () => {
+    expect(stripHtml("<p>One.</p><p><strong> </strong></p><p>Two.</p>")).toBe("One.\n\nTwo.");
+  });
+
+  it("does not merge a bold lead-in paragraph into the next bold heading", () => {
+    // A lazy match starting at the first <p><b> used to run on to the next
+    // "</b></p>" and turn both paragraphs into one bogus heading.
+    const html = "<p><b>Note:</b> apply by Friday.</p><p><b>Benefits</b></p>";
+    expect(stripHtml(html)).toBe("Note: apply by Friday.\n\n**Benefits**");
+  });
+
+  it("does not mistake a <br> for a <b> tag", () => {
+    expect(stripHtml("<p><br>Line after a break.</p>")).toBe("Line after a break.");
   });
 
   it("does not treat a <strong> that shares its paragraph with other text as a heading", () => {

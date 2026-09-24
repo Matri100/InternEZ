@@ -1,140 +1,101 @@
-// Orchestrates one sync run across every configured SourcedEmployer:
-// fetch -> filter to internship-shaped titles -> resolve to an EU/EEA
-// country -> upsert. Per-employer errors (a dead board token, a network
-// blip) are caught and reported rather than aborting the whole run, since
-// one bad source shouldn't block every other employer's listings from
-// updating.
+// One sync run: for each configured country, fetch new internship-titled
+// jobs from Active Jobs DB (capped at that country's share of the plan
+// quota), normalize them, drop duplicates, and upsert. A failure fetching
+// one country is reported in its result rather than aborting the others.
 import { db } from "../../models/store.js";
-import { detectListingLanguage } from "../language.js";
-import { fetchGreenhouseJobs } from "./greenhouse.js";
-import { fetchLeverPostings } from "./lever.js";
-import { isInternshipTitle } from "./filter.js";
-import { mapLocationToCountry } from "./mapCountry.js";
-import type { IngestedListing, SourcedEmployer } from "./types.js";
-import type { Listing } from "../../types/domain.js";
+import { countryName } from "../../data/reference.js";
+import { SOURCED_COUNTRIES } from "../../data/sourcedCountries.js";
+import { fetchActiveJobsDb, type ActiveJobsDbJob } from "./activeJobsDb.js";
+import { normalizeActiveJob } from "./normalize.js";
+import type { CountryCode } from "../../types/domain.js";
 
-export interface EmployerSyncResult {
-  employer: string;
+export interface CountrySyncResult {
+  country: CountryCode;
   fetched: number;
-  internshipShaped: number;
   saved: number;
-  skippedNonEuLocation: number;
+  skippedNotInternship: number;
+  skippedWrongCountry: number;
+  skippedNoEmployer: number;
+  skippedDuplicate: number;
   error?: string;
 }
 
-async function fetchFor(employer: SourcedEmployer): Promise<IngestedListing[]> {
-  if (employer.ats === "greenhouse") return fetchGreenhouseJobs(employer.token);
-  return fetchLeverPostings(employer.token);
+export interface SyncOptions {
+  apiKey: string;
+  // "24h" for the daily run; "7d" for a one-off backfill when first seeding.
+  timeFrame: "24h" | "7d";
+  // Overrides every country's daily cap — for small test runs and backfills.
+  perCountry?: number;
+  // Restricts the run to these countries (must also be in SOURCED_COUNTRIES).
+  countries?: CountryCode[];
 }
 
-// Google's favicon service — free, no API key, no account. It's a low-res
-// favicon rather than a real logo (Clearbit's old free logo API was
-// discontinued December 2025; its modern replacements, e.g. logo.dev, all
-// require creating an account for an API key, which nothing here can do
-// on anyone's behalf). Good enough to beat a bare-initials placeholder;
-// swap for a real logo API's URL pattern here if/when there's a key.
-function faviconUrl(website: string): string | null {
-  try {
-    const { hostname } = new URL(website);
-    return `https://www.google.com/s2/favicons?domain=${hostname}&sz=128`;
-  } catch {
-    return null;
+export async function syncActiveJobsDb(options: SyncOptions): Promise<CountrySyncResult[]> {
+  const targets = SOURCED_COUNTRIES.filter((c) => !options.countries || options.countries.includes(c.code));
+  const savedCompanies = new Set<string>();
+  const results: CountrySyncResult[] = [];
+  for (const target of targets) {
+    results.push(await syncCountry(target.code, options.perCountry ?? target.dailyCap, options, savedCompanies));
   }
+  return results;
 }
 
-function toListingInput(
-  ingested: IngestedListing,
-  country: NonNullable<ReturnType<typeof mapLocationToCountry>>
-): Omit<Listing, "id" | "companyId" | "createdAt"> {
-  return {
-    title: ingested.title,
-    location: ingested.location,
+async function syncCountry(
+  country: CountryCode,
+  limit: number,
+  options: SyncOptions,
+  savedCompanies: Set<string>
+): Promise<CountrySyncResult> {
+  const result: CountrySyncResult = {
     country,
-    origin: "sourced",
-    department: ingested.department,
-    // No reliable remote/hybrid/onsite signal from every source (e.g.
-    // Greenhouse) — "On-site" is the neutral default when the source gave
-    // no workplaceType and the location text didn't say "remote" either.
-    workArrangement: ingested.workplaceType ?? "On-site",
-    // Neither ATS reliably states a required degree level for an
-    // internship listing — "Bachelor" is the common-case default, not a
-    // detected fact.
-    requiredEducationLevel: "Bachelor",
-    duration: "Flexible",
-    startDate: "flexible",
-    startLabel: "Flexible",
-    endLabel: "",
-    compensation: "",
-    applicationDeadline: "",
-    description: ingested.description,
-    language: detectListingLanguage(ingested.title, ingested.description),
-    applyUrl: ingested.applyUrl,
-    // Structured fields (skills, target fields, required languages,
-    // industries, eligibility, extra questions) aren't guessed from free
-    // text — left empty/neutral rather than fabricated. Matching still
-    // works for a sourced listing, just with those factors scoring
-    // neutral instead of a real signal either way.
-    requirements: [],
-    skills: [],
-    targetFields: [],
-    requiredLanguages: [],
-    industries: [],
-    preferredQualifications: [],
-    eligibility: {},
-    extraQuestions: [],
-  };
-}
-
-export async function syncEmployer(employer: SourcedEmployer): Promise<EmployerSyncResult> {
-  const result: EmployerSyncResult = {
-    employer: employer.name,
     fetched: 0,
-    internshipShaped: 0,
     saved: 0,
-    skippedNonEuLocation: 0,
+    skippedNotInternship: 0,
+    skippedWrongCountry: 0,
+    skippedNoEmployer: 0,
+    skippedDuplicate: 0,
   };
 
-  let ingested: IngestedListing[];
+  let jobs: ActiveJobsDbJob[];
   try {
-    ingested = await fetchFor(employer);
+    jobs = await fetchActiveJobsDb({
+      apiKey: options.apiKey,
+      countryName: countryName(country),
+      timeFrame: options.timeFrame,
+      limit,
+    });
   } catch (err) {
     result.error = err instanceof Error ? err.message : String(err);
     return result;
   }
-  result.fetched = ingested.length;
+  result.fetched = jobs.length;
 
-  const internships = ingested.filter((job) => isInternshipTitle(job.title));
-  result.internshipShaped = internships.length;
-  if (internships.length === 0) return result;
-
-  await db.saveCompany(employer.key, {
-    name: employer.name,
-    verified: false, // sourced companies never self-declared this — see ListingOrigin
-    logoUrl: faviconUrl(employer.website),
-    description: "",
-    website: employer.website,
-    headquarters: null,
-    companySize: null,
-  });
-
-  for (const job of internships) {
-    const country = mapLocationToCountry(job.location);
-    if (!country) {
-      result.skippedNonEuLocation++;
+  const now = new Date();
+  const seenThisRun = new Set<string>();
+  for (const job of jobs) {
+    const normalized = normalizeActiveJob(job, country, now);
+    if ("skipped" in normalized) {
+      if (normalized.skipped === "notInternship") result.skippedNotInternship++;
+      else if (normalized.skipped === "wrongCountry") result.skippedWrongCountry++;
+      else result.skippedNoEmployer++;
       continue;
     }
-    const listingId = `${employer.key}:${job.externalId}`;
-    await db.upsertSourcedListing(listingId, employer.key, toListingInput(job, country));
+
+    const { listingId, companyId, company, listing, expiresAt } = normalized;
+    const dedupeKey = `${companyId}|${listing.title.toLowerCase()}`;
+    if (seenThisRun.has(dedupeKey) || (await db.hasVisibleDuplicateListing(companyId, listing.title, listingId))) {
+      result.skippedDuplicate++;
+      continue;
+    }
+    seenThisRun.add(dedupeKey);
+
+    if (!savedCompanies.has(companyId)) {
+      await db.saveCompany(companyId, company);
+      savedCompanies.add(companyId);
+    }
+    await db.upsertSourcedListing(listingId, companyId, listing, expiresAt);
     result.saved++;
   }
 
   return result;
-}
-
-export async function syncAll(employers: SourcedEmployer[]): Promise<EmployerSyncResult[]> {
-  const results: EmployerSyncResult[] = [];
-  for (const employer of employers) {
-    results.push(await syncEmployer(employer));
-  }
-  return results;
 }
