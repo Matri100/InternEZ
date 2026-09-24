@@ -23,6 +23,23 @@ export const nl: Messages = {
   "language.label": "Taal",
   "language.choose": "Taal kiezen",
 
+  // --- accessibility menu ---
+  "a11y.title": "Toegankelijkheid",
+  "a11y.textSize": "Tekstgrootte",
+  "a11y.sizeNormal": "Normale tekst",
+  "a11y.sizeLarge": "Grote tekst",
+  "a11y.sizeLarger": "Extra grote tekst",
+  "a11y.highContrast": "Hoog contrast",
+  "a11y.highContrastHint": "Sterkere kleuren en randen",
+  "a11y.underlineLinks": "Links onderstrepen",
+  "a11y.underlineLinksHint": "Maak links makkelijk herkenbaar",
+  "a11y.wideSpacing": "Ruimere tekstafstand",
+  "a11y.wideSpacingHint": "Meer ruimte tussen regels en letters",
+  "a11y.reduceMotion": "Minder beweging",
+  "a11y.reduceMotionHint": "Animaties uitzetten",
+  "a11y.reset": "Standaardinstellingen herstellen",
+  "a11y.skipToContent": "Naar de inhoud",
+
   // --- top bar ---
   "nav.profile": "Profiel",
   "nav.browse": "Ontdekken",

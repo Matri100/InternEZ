@@ -23,6 +23,23 @@ export const es: Messages = {
   "language.label": "Idioma",
   "language.choose": "Elegir idioma",
 
+  // --- accessibility menu ---
+  "a11y.title": "Accesibilidad",
+  "a11y.textSize": "Tamaño del texto",
+  "a11y.sizeNormal": "Texto normal",
+  "a11y.sizeLarge": "Texto grande",
+  "a11y.sizeLarger": "Texto muy grande",
+  "a11y.highContrast": "Alto contraste",
+  "a11y.highContrastHint": "Colores y contornos más marcados",
+  "a11y.underlineLinks": "Subrayar enlaces",
+  "a11y.underlineLinksHint": "Distinguir los enlaces con facilidad",
+  "a11y.wideSpacing": "Más espacio en el texto",
+  "a11y.wideSpacingHint": "Más espacio entre líneas y letras",
+  "a11y.reduceMotion": "Reducir el movimiento",
+  "a11y.reduceMotionHint": "Desactivar las animaciones",
+  "a11y.reset": "Restablecer los valores predeterminados",
+  "a11y.skipToContent": "Ir al contenido",
+
   // --- top bar ---
   "nav.profile": "Perfil",
   "nav.browse": "Explorar",

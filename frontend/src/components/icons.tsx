@@ -101,3 +101,14 @@ export function MoonIcon() {
     </svg>
   );
 }
+
+// The universal-access figure: a person with arms out, inside a circle.
+export function AccessibilityIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+      <circle cx="12" cy="12" r="10" />
+      <circle cx="12" cy="7.2" r="1.2" fill="currentColor" stroke="none" />
+      <path d="M7.5 10.2 12 11l4.5-.8M12 11v3.2M12 14.2l-2.3 4M12 14.2l2.3 4" />
+    </svg>
+  );
+}

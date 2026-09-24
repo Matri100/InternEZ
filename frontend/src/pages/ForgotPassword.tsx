@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
+import { AccessibilityMenu } from "../components/AccessibilityMenu";
 import { LanguageMenu } from "../components/LanguageMenu";
 import { useI18n } from "../i18n";
 import { errorText } from "../i18n/errors";
@@ -29,6 +30,7 @@ export function ForgotPassword() {
   return (
     <div className="auth-page">
       <div className="corner-controls">
+        <AccessibilityMenu />
         <LanguageMenu />
       </div>
       <Link to="/" className="wordmark">

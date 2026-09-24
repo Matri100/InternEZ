@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
+import { motionReduced } from "../accessibility/settings";
 import { useAppData } from "../context/AppData";
 import { ListingCard } from "../components/ListingCard";
 import { ApplyModal } from "../components/ApplyModal";
@@ -122,7 +123,7 @@ export function Browse() {
 
   function changePage(page: number) {
     update({ page });
-    resultsTop.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    resultsTop.current?.scrollIntoView({ behavior: motionReduced() ? "auto" : "smooth", block: "start" });
   }
 
   function clearFilters() {

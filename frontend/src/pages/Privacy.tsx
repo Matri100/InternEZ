@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { AccessibilityMenu } from "../components/AccessibilityMenu";
 import { LanguageMenu } from "../components/LanguageMenu";
 import { useI18n } from "../i18n";
 
@@ -19,6 +20,7 @@ export function Privacy() {
             <Link to="/" className="landing-header-link">
               {t("legal.backHome")}
             </Link>
+            <AccessibilityMenu />
             <LanguageMenu />
           </div>
         </div>
