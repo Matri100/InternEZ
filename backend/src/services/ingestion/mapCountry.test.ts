@@ -26,6 +26,15 @@ describe("mapLocationToCountry", () => {
 
   it("resolves a bare 2-letter code that's a valid CountryCode", () => {
     expect(mapLocationToCountry("DE")).toBe("DE");
+    expect(mapLocationToCountry("Remote - PL")).toBe("PL");
+  });
+
+  it("does not read lowercase words like 'de' or 'es' as country codes", () => {
+    // Real Active Jobs DB locations: every Paris-region internship was
+    // resolved to Germany via the "de" in "Ile-de-France".
+    expect(mapLocationToCountry("Levallois-Perret, Ile-de-France, France")).toBe("FR");
+    expect(mapLocationToCountry("Fontenay-sous-Bois, Ile-de-France, France")).toBe("FR");
+    expect(mapLocationToCountry("Val-de-Marne, France")).toBe("FR");
   });
 
   it("resolves via known aliases", () => {
