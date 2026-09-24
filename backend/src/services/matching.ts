@@ -305,28 +305,39 @@ export function computeMatch(
 
   const total = factors.reduce((sum, f) => sum + f.points, 0);
 
+  const { strengths, gaps } = strongestAndWeakest(factors);
   return {
     total,
     factors: factors.map(({ positiveNote, negativeNote, ...f }) => f),
-    explanation: buildExplanation(factors, total),
+    explanation: buildExplanation(
+      strengths.map((f) => f.positiveNote),
+      gaps.map((f) => f.negativeNote),
+      total
+    ),
+    strengths: strengths.map((f) => f.key),
+    gaps: gaps.map((f) => f.key),
   };
 }
 
-function buildExplanation(factors: FactorDef[], total: number): string {
+// Up to two clear strengths and the single biggest gap, ignoring factors
+// that fell back to a neutral default.
+function strongestAndWeakest(factors: FactorDef[]): { strengths: FactorDef[]; gaps: FactorDef[] } {
   const scored = factors.filter((f) => !f.neutral);
+  return {
+    strengths: [...scored]
+      .filter((f) => f.points / f.max >= 0.75)
+      .sort((a, b) => b.points / b.max - a.points / a.max)
+      .slice(0, 2),
+    gaps: [...scored]
+      .filter((f) => f.points / f.max < 0.4)
+      .sort((a, b) => a.points / a.max - b.points / b.max)
+      .slice(0, 1),
+  };
+}
 
-  const strengths = [...scored]
-    .filter((f) => f.points / f.max >= 0.75)
-    .sort((a, b) => b.points / b.max - a.points / a.max)
-    .slice(0, 2)
-    .map((f) => f.positiveNote);
-
-  const gaps = [...scored]
-    .filter((f) => f.points / f.max < 0.4)
-    .sort((a, b) => a.points / a.max - b.points / b.max)
-    .slice(0, 1)
-    .map((f) => f.negativeNote);
-
+// The frontend builds the same sentence from strengths/gaps in the
+// interface language (lib/match.ts) — keep the two in step.
+function buildExplanation(strengths: string[], gaps: string[], total: number): string {
   if (strengths.length === 0 && gaps.length === 0) {
     if (total >= 60) return "A reasonable overall fit, without one factor standing out strongly either way.";
     return "Limited overlap with this listing's requirements right now — worth a look if you're still interested.";

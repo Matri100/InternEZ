@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { MAP_HEIGHT, MAP_SHAPES, MAP_WIDTH, type MapShape } from "../../data/europeMap";
 import type { CountryCode } from "../../types/domain";
+import { useI18n } from "../../i18n";
 
 // Shapes smaller than this (in the map's own 1000px-wide units) are too
 // small to fit a count label — Luxembourg, Malta, Liechtenstein, Cyprus.
@@ -30,6 +31,7 @@ export default function EuropeMap({
 }) {
   const [hover, setHover] = useState<{ code: CountryCode; x: number; y: number } | null>(null);
   const frameRef = useRef<HTMLDivElement>(null);
+  const { t } = useI18n();
 
   const groups = useMemo(() => {
     const byCode = new Map<CountryCode, MapShape[]>();
@@ -69,7 +71,7 @@ export default function EuropeMap({
       <svg
         viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
         role="group"
-        aria-label="Internships by country. Select a country to filter by it."
+        aria-label={t("browse.mapLabel")}
         onMouseLeave={() => setHover(null)}
       >
         <g className="map-context" aria-hidden="true">
@@ -88,7 +90,7 @@ export default function EuropeMap({
               role={interactive ? "button" : undefined}
               tabIndex={interactive ? 0 : undefined}
               aria-pressed={interactive ? isSelected : undefined}
-              aria-label={`${countryName(code)}: ${count} ${count === 1 ? "internship" : "internships"}`}
+              aria-label={`${countryName(code)}: ${t("browse.mapCount", { count })}`}
               onClick={interactive ? () => onToggle(code) : undefined}
               onKeyDown={
                 interactive
@@ -135,9 +137,7 @@ export default function EuropeMap({
       {hover && (
         <div className="map-tooltip" style={{ left: hover.x, top: hover.y }} role="status">
           <strong>{countryName(hover.code)}</strong>
-          <span>
-            {hoverCount} {hoverCount === 1 ? "internship" : "internships"}
-          </span>
+          <span>{t("browse.mapCount", { count: hoverCount })}</span>
         </div>
       )}
     </div>

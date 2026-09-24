@@ -1,3 +1,5 @@
+import { useI18n } from "../../i18n";
+
 // "Previous 1 … 4 5 6 … 12 Next" — the first and last page, and two
 // either side of the current one.
 function pageNumbers(page: number, pageCount: number): (number | "gap")[] {
@@ -21,12 +23,13 @@ export function Pagination({
   pageCount: number;
   onChange: (page: number) => void;
 }) {
+  const { t } = useI18n();
   if (pageCount <= 1) return null;
 
   return (
-    <nav className="pagination" aria-label="Result pages">
+    <nav className="pagination" aria-label={t("browse.pages")}>
       <button type="button" className="btn btn-ghost btn-sm" disabled={page <= 1} onClick={() => onChange(page - 1)}>
-        Previous
+        {t("browse.previous")}
       </button>
       <ol>
         {pageNumbers(page, pageCount).map((p, i) =>
@@ -54,7 +57,7 @@ export function Pagination({
         disabled={page >= pageCount}
         onClick={() => onChange(page + 1)}
       >
-        Next
+        {t("browse.next")}
       </button>
     </nav>
   );

@@ -1,12 +1,11 @@
-import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import type { ListingSummary } from "../types/domain";
-import { ELIGIBILITY_LABELS } from "./EligibilityFlag";
 import { CompanyLogo } from "./CompanyLogo";
 import { MetaRow } from "./MetaRow";
 import { BookmarkIcon } from "./icons";
-import { useReferenceData } from "../context/ReferenceData";
-import { deadlineLabel, durationLabel, startLabel } from "../lib/listingFacts";
+import { languageCodeOf, useI18n } from "../i18n";
+import { eligibilityText } from "../lib/explanations";
+import { deadlineLabel, knownDuration, startLabel } from "../lib/listingFacts";
 
 export function ListingCard({
   listing,
@@ -17,7 +16,7 @@ export function ListingCard({
   onApply: () => void;
   onToggleSave: () => void;
 }) {
-  const { reference } = useReferenceData();
+  const { t, locale, formatDate, countryName, languageName } = useI18n();
   // Per-language "Danish — Fluent" tags were too much noise on a card meant
   // to be scanned quickly, and mostly duplicated what the eligibility badge
   // already says. citizenOnly is the sharper, rarer signal underneath it —
@@ -26,14 +25,12 @@ export function ListingCard({
   // only") rather than a generic "closed to international" so a matching
   // applicant can self-identify at a glance. The fuller language breakdown
   // stays on the listing detail page for anyone who clicks in.
-  const citizenOnlyLabel = useMemo(() => {
-    const code = listing.eligibility.citizenOnly;
-    if (!code) return null;
-    const name = reference?.regions.flatMap((r) => r.countries).find((c) => c.code === code)?.name ?? code;
-    return `${name} citizens only`;
-  }, [listing.eligibility.citizenOnly, reference]);
+  const citizenOnly = listing.eligibility.citizenOnly;
+  const citizenOnlyLabel = citizenOnly ? t("listing.citizensOnly", { country: countryName(citizenOnly) }) : null;
   const start = startLabel(listing);
-  const deadline = deadlineLabel(listing);
+  const deadline = deadlineLabel(listing, formatDate);
+  const duration = knownDuration(listing);
+  const saveLabel = listing.saved ? t("listing.unsave") : t("listing.save");
 
   return (
     <div className="listing-card">
@@ -47,15 +44,20 @@ export function ListingCard({
           <div className="listing-meta" style={{ marginTop: 4 }}>
             <span className="company">
               {listing.company.name}
-              {listing.company.verified && <span className="verified-mark" title="Verified employer"> ✓</span>}
+              {listing.company.verified && (
+                <span className="verified-mark" title={t("listing.verified")}>
+                  {" "}
+                  ✓
+                </span>
+              )}
             </span>
             <span className="detail-row">
               <MetaRow
                 items={[
                   listing.location,
-                  listing.workArrangement,
-                  durationLabel(listing),
-                  start && `Starts ${start}`,
+                  t(`arrangement.${listing.workArrangement}`),
+                  duration && t(`duration.${duration}`),
+                  start && t("listing.startsOn", { date: start }),
                 ]}
               />
             </span>
@@ -65,25 +67,23 @@ export function ListingCard({
         <div className="listing-card-flags">
           <span
             className={`eligibility-badge ${listing.eligibilityResult.level}`}
-            title={listing.eligibilityResult.why}
+            title={eligibilityText(listing.eligibilityResult, t, countryName)}
           >
-            {ELIGIBILITY_LABELS[listing.eligibilityResult.level]}
+            {t(`eligibility.${listing.eligibilityResult.level}`)}
           </span>
 
           {citizenOnlyLabel && <span className="listing-flag-badge">{citizenOnlyLabel}</span>}
 
-          {listing.language !== "English" && (
-            <span className="listing-flag-badge" title="Not translated — shown as posted">
-              Posted in {listing.language}
+          {/* Only when the posting isn't in the language the site is shown in. */}
+          {languageCodeOf(listing.language) !== locale && (
+            <span className="listing-flag-badge" title={t("listing.postedInTitle")}>
+              {t("listing.postedIn", { language: languageName(listing.language) })}
             </span>
           )}
 
           {listing.origin === "sourced" && (
-            <span
-              className="listing-flag-badge"
-              title="Pulled from the employer's own hiring system — applying links out to their site"
-            >
-              External listing
+            <span className="listing-flag-badge" title={t("listing.externalTitle")}>
+              {t("listing.external")}
             </span>
           )}
 
@@ -92,8 +92,8 @@ export function ListingCard({
             className={`save-btn ${listing.saved ? "saved" : ""}`}
             onClick={onToggleSave}
             aria-pressed={listing.saved}
-            aria-label={listing.saved ? "Remove from saved" : "Save for later"}
-            title={listing.saved ? "Remove from saved" : "Save for later"}
+            aria-label={saveLabel}
+            title={saveLabel}
           >
             <BookmarkIcon filled={listing.saved} />
           </button>
@@ -101,9 +101,9 @@ export function ListingCard({
       </div>
 
       <div className="listing-card-footer">
-        <span className="listing-card-deadline">{deadline && `Apply by ${deadline}`}</span>
+        <span className="listing-card-deadline">{deadline && t("listing.applyBy", { date: deadline })}</span>
         <button type="button" className="btn btn-secondary btn-sm" onClick={onApply}>
-          Apply
+          {t("listing.apply")}
         </button>
       </div>
     </div>

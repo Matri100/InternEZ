@@ -214,9 +214,28 @@ export interface Listing {
 
 export type EligibilityLevel = "ok" | "review" | "blocked";
 
+// Why a listing is (not) open to an applicant, as data rather than a
+// sentence, so the frontend can say it in the interface language. `why`
+// below is the same thing as English text.
+export interface EligibilityReason {
+  code:
+    | "citizenOnlyClearance"
+    | "citizenOnlyOk"
+    | "citizenOnlyBlocked"
+    | "noRestriction"
+    | "regionCitizenship"
+    | "pathway"
+    | "regionBlocked";
+  country?: CountryCode;
+  // For "pathway": which part of the profile connects to the region.
+  via?: "placeOfBirth" | "residence" | "education";
+  institution?: string;
+}
+
 export interface EligibilityResult {
   level: EligibilityLevel;
   why: string;
+  reason: EligibilityReason;
 }
 
 export interface MatchFactor {
@@ -230,7 +249,11 @@ export interface MatchFactor {
 export interface MatchResult {
   total: number;
   factors: MatchFactor[];
+  // English text; strengths/gaps are the factor keys it was built from, so
+  // the frontend can build the same sentence in another language.
   explanation: string;
+  strengths: string[];
+  gaps: string[];
 }
 
 export interface ListingWithComputed extends Listing {

@@ -1,12 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
-import { APPLICATION_STATUS_LABELS } from "../lib/applicationStatus";
+import { useI18n } from "../i18n";
 import type { ApplicationWithListing } from "../types/domain";
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
-}
 
 export function Applications() {
   const [applications, setApplications] = useState<ApplicationWithListing[] | null>(null);
@@ -14,6 +10,7 @@ export function Applications() {
   const [withdrawing, setWithdrawing] = useState<string | null>(null);
   const [messaging, setMessaging] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { t, formatDate } = useI18n();
 
   useEffect(() => {
     api.getApplications().then(setApplications);
@@ -43,7 +40,7 @@ export function Applications() {
   if (!applications) {
     return (
       <div className="page">
-        <p style={{ color: "var(--text-secondary)" }}>Loading…</p>
+        <p style={{ color: "var(--text-secondary)" }}>{t("common.loading")}</p>
       </div>
     );
   }
@@ -52,10 +49,10 @@ export function Applications() {
     return (
       <div className="page">
         <div className="empty-state">
-          <h3>No applications yet</h3>
-          <p style={{ marginBottom: 16 }}>Everything you submit will show up here.</p>
+          <h3>{t("applications.emptyTitle")}</h3>
+          <p style={{ marginBottom: 16 }}>{t("applications.emptyBody")}</p>
           <Link to="/browse" className="btn btn-primary">
-            Browse listings
+            {t("common.browseListings")}
           </Link>
         </div>
       </div>
@@ -66,8 +63,8 @@ export function Applications() {
     <div className="page">
       <div className="page-header">
         <div>
-          <h1>Your applications</h1>
-          <p>{applications.length} submitted.</p>
+          <h1>{t("applications.title")}</h1>
+          <p>{t("applications.count", { count: applications.length })}</p>
         </div>
       </div>
 
@@ -83,8 +80,7 @@ export function Applications() {
               <span className="company">{app.company.name}</span>
               {app.status === "appliedExternally" && (
                 <p className="detail-block" style={{ fontSize: 13, color: "var(--text-faint)", maxWidth: "52ch" }}>
-                  This application went through, but its pipeline lives on {app.company.name}'s own system, not
-                  InternEZ — check there (or your email) for updates.
+                  {t("applications.externalNote", { company: app.company.name })}
                 </p>
               )}
               {app.extraAnswers.length > 0 && (
@@ -99,17 +95,17 @@ export function Applications() {
 
               {confirmingId === app.id ? (
                 <div className="detail-block" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 13.5, color: "var(--text-secondary)" }}>Withdraw this application?</span>
+                  <span style={{ fontSize: 13.5, color: "var(--text-secondary)" }}>{t("applications.withdrawConfirm")}</span>
                   <button
                     type="button"
                     className="btn btn-secondary btn-sm"
                     onClick={() => withdraw(app.id)}
                     disabled={withdrawing === app.id}
                   >
-                    {withdrawing === app.id ? "Withdrawing…" : "Yes, withdraw"}
+                    {withdrawing === app.id ? t("applications.withdrawing") : t("applications.yesWithdraw")}
                   </button>
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmingId(null)}>
-                    Cancel
+                    {t("common.cancel")}
                   </button>
                 </div>
               ) : (
@@ -120,20 +116,20 @@ export function Applications() {
                     onClick={() => message(app.company.id)}
                     disabled={messaging === app.company.id}
                   >
-                    {messaging === app.company.id ? "Opening…" : "Message"}
+                    {messaging === app.company.id ? t("applications.opening") : t("applications.message")}
                   </button>
                   {app.status !== "withdrawn" && (
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmingId(app.id)}>
-                      Withdraw
+                      {t("applications.withdraw")}
                     </button>
                   )}
                 </div>
               )}
             </div>
             <div className="application-row-meta">
-              <span className={`status-badge ${app.status}`}>{APPLICATION_STATUS_LABELS[app.status]}</span>
-              {app.overridden && <span className="override-badge">Applied despite flag</span>}
-              <span>{formatDate(app.submittedAt)}</span>
+              <span className={`status-badge ${app.status}`}>{t(`status.${app.status}`)}</span>
+              {app.overridden && <span className="override-badge">{t("applications.overridden")}</span>}
+              <span>{formatDate(new Date(app.submittedAt))}</span>
             </div>
           </div>
         ))}

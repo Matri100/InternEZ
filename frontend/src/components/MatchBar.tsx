@@ -1,6 +1,9 @@
 import type { MatchResult } from "../types/domain";
+import { factorLabel } from "../lib/explanations";
+import { useI18n } from "../i18n";
 
 export function MatchBar({ match }: { match: MatchResult }) {
+  const { t } = useI18n();
   return (
     <div className="match-factor-grid">
       {match.factors.map((f) => {
@@ -8,8 +11,8 @@ export function MatchBar({ match }: { match: MatchResult }) {
         return (
           <div className="match-bar-row" key={f.key}>
             <span>
-              {f.label}
-              {f.neutral && <span className="match-neutral-dot" title="No preference set — neutral default" />}
+              {factorLabel(f, t)}
+              {f.neutral && <span className="match-neutral-dot" title={t("match.neutral")} />}
             </span>
             <div className="match-bar-track">
               <div className={`match-bar-fill ${f.neutral ? "neutral" : ""}`} style={{ width: `${pct}%` }} />

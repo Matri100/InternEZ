@@ -3518,3 +3518,128 @@ fieldset {
 .kanban-card select {
   margin-top: 4px;
 }
+
+/* ================= Language menu ================= */
+
+.flag {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 20px;
+  height: 15px;
+  line-height: 0;
+  border-radius: 2px;
+  overflow: hidden;
+  /* A hairline edge, so white stripes (Poland, France) don't melt into a
+     white menu. */
+  box-shadow: 0 0 0 1px rgba(13, 19, 33, 0.14);
+}
+
+.flag svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.language-menu {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.language-menu-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.language-menu-button:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+/* On the navy top bars and the black early-access page. */
+.topbar .language-menu-button,
+.landing-header .language-menu-button,
+.gate-page .language-menu-button {
+  border-color: var(--brand-on-navy-border);
+  background: transparent;
+  color: var(--brand-on-navy-secondary);
+}
+
+.topbar .language-menu-button:hover,
+.landing-header .language-menu-button:hover,
+.gate-page .language-menu-button:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+  color: var(--brand-on-navy);
+}
+
+.language-menu-chevron {
+  width: 10px;
+  height: 6px;
+}
+
+.language-menu-list {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  min-width: 180px;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-popover);
+  outline: none;
+}
+
+.language-menu-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  font-size: 13.5px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.language-menu-option.active {
+  background: var(--surface-alt);
+}
+
+.language-menu-option.selected {
+  font-weight: 700;
+}
+
+.language-menu-option.selected::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* Top-right corner of the pages without a top bar (log in, sign up,
+   password reset, early access). */
+.corner-controls {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+}
+
+.auth-page,
+.gate-page {
+  position: relative;
+}

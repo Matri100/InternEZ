@@ -28,26 +28,29 @@ function isValidRole(value: unknown): value is UserRole {
 // never a real password.
 const DUMMY_PASSWORD_HASH = hashPassword("not-a-real-password-timing-decoy");
 
+// Error responses carry a `code` next to the English `error`, so the
+// frontend can show the message in the visitor's own language.
+
 authRouter.post("/signup", authLimiter, async (req, res) => {
   const { email, password, role, name } = req.body ?? {};
 
   if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    res.status(400).json({ error: "Enter a valid email address" });
+    res.status(400).json({ error: "Enter a valid email address", code: "invalidEmail" });
     return;
   }
   if (typeof password !== "string" || password.length < 8) {
-    res.status(400).json({ error: "Password must be at least 8 characters" });
+    res.status(400).json({ error: "Password must be at least 8 characters", code: "passwordTooShort" });
     return;
   }
   if (!isValidRole(role)) {
-    res.status(400).json({ error: "Choose whether you're an applicant or a company" });
+    res.status(400).json({ error: "Choose whether you're an applicant or a company", code: "roleRequired" });
     return;
   }
 
   const normalizedEmail = email.trim().toLowerCase();
   const existing = await db.getUserByEmail(normalizedEmail);
   if (existing) {
-    res.status(409).json({ error: "An account with this email already exists" });
+    res.status(409).json({ error: "An account with this email already exists", code: "emailTaken" });
     return;
   }
 
@@ -96,7 +99,7 @@ authRouter.post("/signup", authLimiter, async (req, res) => {
   // since login now issues a fresh one.
   req.session.regenerate((err) => {
     if (err) {
-      res.status(500).json({ error: "Something went wrong — please try again." });
+      res.status(500).json({ error: "Something went wrong — please try again.", code: "serverError" });
       return;
     }
     req.session.userId = id;
@@ -118,13 +121,13 @@ authRouter.post("/login", authLimiter, async (req, res) => {
   // and don't leak which emails have accounts via response timing.
   const passwordOk = verifyPassword(submittedPassword, stored?.passwordHash ?? DUMMY_PASSWORD_HASH);
   if (!stored || !passwordOk) {
-    res.status(401).json({ error: "Incorrect email or password" });
+    res.status(401).json({ error: "Incorrect email or password", code: "wrongCredentials" });
     return;
   }
 
   req.session.regenerate((err) => {
     if (err) {
-      res.status(500).json({ error: "Something went wrong — please try again." });
+      res.status(500).json({ error: "Something went wrong — please try again.", code: "serverError" });
       return;
     }
     req.session.userId = stored.id;
@@ -164,18 +167,18 @@ authRouter.post("/forgot-password", authLimiter, async (req, res) => {
 authRouter.post("/reset-password", authLimiter, async (req, res) => {
   const { token, password } = req.body ?? {};
   if (typeof token !== "string" || !token) {
-    res.status(400).json({ error: "Missing or invalid reset link" });
+    res.status(400).json({ error: "Missing or invalid reset link", code: "invalidResetLink" });
     return;
   }
   if (typeof password !== "string" || password.length < 8) {
-    res.status(400).json({ error: "Password must be at least 8 characters" });
+    res.status(400).json({ error: "Password must be at least 8 characters", code: "passwordTooShort" });
     return;
   }
 
   const tokenHash = hashResetToken(token);
   const stored = await db.getPasswordResetToken(tokenHash);
   if (!stored || new Date(stored.expiresAt).getTime() < Date.now()) {
-    res.status(400).json({ error: "This reset link is invalid or has expired" });
+    res.status(400).json({ error: "This reset link is invalid or has expired", code: "expiredResetLink" });
     return;
   }
 

@@ -67,8 +67,8 @@ function makeListing(overrides: Partial<Listing> = {}): Listing {
   };
 }
 
-const OK: EligibilityResult = { level: "ok", why: "" };
-const BLOCKED: EligibilityResult = { level: "blocked", why: "" };
+const OK: EligibilityResult = { level: "ok", why: "", reason: { code: "noRestriction" } };
+const BLOCKED: EligibilityResult = { level: "blocked", why: "", reason: { code: "regionBlocked" } };
 
 describe("computeMatch", () => {
   it("gives full field-of-study points when primary education field matches a target field", () => {
@@ -105,6 +105,20 @@ describe("computeMatch", () => {
     const blockedEligibility = blockedResult.factors.find((f) => f.key === "eligibility")!;
     expect(okEligibility.points).toBe(okEligibility.max);
     expect(blockedEligibility.points).toBe(0);
+  });
+
+  it("names the factors its explanation was built from, so it can be worded in any language", () => {
+    const applicant = makeApplicant({
+      skills: ["React", "TypeScript", "Node.js", "SQL", "Docker", "Python"],
+      education: [{ id: "e1", applicantId: "a1", level: "Bachelor", institution: "TUM", country: "DE", field: "Computer Science", startYear: "2020", endYear: "2024" }],
+    });
+    const listing = makeListing({ targetFields: ["Computer Science"], skills: ["React", "TypeScript", "Node.js", "SQL", "Docker", "Python"] });
+    const result = computeMatch(applicant, listing, BLOCKED);
+    expect(result.strengths).toEqual(["field", "skills"]);
+    expect(result.gaps).toEqual(["eligibility"]);
+    expect(result.explanation).toBe(
+      "A strong academic background match and relevant technical skills. Eligibility looks like a real hurdle here."
+    );
   });
 
   it("total is the sum of all factor points and stays within 0-100", () => {

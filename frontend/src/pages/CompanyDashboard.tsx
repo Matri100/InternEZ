@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { MetaRow } from "../components/MetaRow";
-import { formatDate } from "../lib/listingFacts";
+import { deadlineLabel } from "../lib/listingFacts";
+import { useI18n } from "../i18n";
 import type { Company, Listing } from "../types/domain";
 
 export function CompanyDashboard() {
+  const { t, formatDate } = useI18n();
   const [listings, setListings] = useState<Listing[] | null>(null);
   const [company, setCompany] = useState<Company | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -84,7 +86,8 @@ export function CompanyDashboard() {
                   items={[
                     listing.location,
                     listing.workArrangement,
-                    listing.applicationDeadline && `Apply by ${formatDate(listing.applicationDeadline)}`,
+                    listing.applicationDeadline &&
+                      t("listing.applyBy", { date: deadlineLabel(listing, formatDate) ?? "" }),
                   ]}
                 />
               </span>

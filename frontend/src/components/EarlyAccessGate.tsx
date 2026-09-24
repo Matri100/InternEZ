@@ -1,4 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useI18n } from "../i18n";
+import { LanguageMenu } from "./LanguageMenu";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
@@ -18,6 +20,7 @@ export function EarlyAccessGate({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [checkFailed, setCheckFailed] = useState(false);
+  const { t } = useI18n();
 
   // A failed check (rate limited, server down, offline) is not a "no": it
   // used to fall through to the key screen, so an already-authorized
@@ -49,11 +52,11 @@ export function EarlyAccessGate({ children }: { children: ReactNode }) {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? "Incorrect key");
+        throw new Error(res.status === 401 ? t("gate.wrongKey") : body.error ?? t("common.somethingWrong"));
       }
       setGranted(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(err instanceof Error ? err.message : t("common.somethingWrong"));
     } finally {
       setSubmitting(false);
     }
@@ -62,14 +65,17 @@ export function EarlyAccessGate({ children }: { children: ReactNode }) {
   if (checkFailed) {
     return (
       <div className="gate-page">
+        <div className="corner-controls">
+          <LanguageMenu />
+        </div>
         <div className="gate-panel">
           <span className="wordmark">
             Intern<span>EZ</span>
           </span>
           <div className="gate-form">
-            <p className="gate-error">InternEZ couldn't be reached. Please try again in a moment.</p>
+            <p className="gate-error">{t("gate.unreachable")}</p>
             <button type="button" className="gate-submit" onClick={checkAccess}>
-              Try again
+              {t("gate.tryAgain")}
             </button>
           </div>
         </div>
@@ -80,7 +86,7 @@ export function EarlyAccessGate({ children }: { children: ReactNode }) {
   if (granted === null) {
     return (
       <div className="page">
-        <p style={{ color: "var(--text-secondary)" }}>Loading…</p>
+        <p style={{ color: "var(--text-secondary)" }}>{t("common.loading")}</p>
       </div>
     );
   }
@@ -88,6 +94,9 @@ export function EarlyAccessGate({ children }: { children: ReactNode }) {
   if (!granted) {
     return (
       <div className="gate-page">
+        <div className="corner-controls">
+          <LanguageMenu />
+        </div>
         <div className="gate-panel">
           <span className="wordmark">
             Intern<span>EZ</span>
@@ -103,12 +112,12 @@ export function EarlyAccessGate({ children }: { children: ReactNode }) {
               autoComplete="off"
               autoFocus
               required
-              placeholder="Access key"
-              aria-label="Access key"
+              placeholder={t("gate.keyPlaceholder")}
+              aria-label={t("gate.keyPlaceholder")}
             />
             {error && <p className="gate-error">{error}</p>}
             <button type="submit" className="gate-submit" disabled={submitting}>
-              {submitting ? "Verifying…" : "Authorize"}
+              {submitting ? t("gate.verifying") : t("gate.authorize")}
             </button>
           </form>
         </div>

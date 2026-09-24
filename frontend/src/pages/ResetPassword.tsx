@@ -1,6 +1,9 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
+import { LanguageMenu } from "../components/LanguageMenu";
+import { T, useI18n } from "../i18n";
+import { errorText } from "../i18n/errors";
 
 export function ResetPassword() {
   const [searchParams] = useSearchParams();
@@ -11,13 +14,14 @@ export function ResetPassword() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const { t } = useI18n();
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
 
     if (password !== confirmPassword) {
-      setError("Passwords don't match");
+      setError(t("auth.passwordsDontMatch"));
       return;
     }
 
@@ -26,7 +30,7 @@ export function ResetPassword() {
       await api.resetPassword({ token, password });
       setDone(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(errorText(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -34,23 +38,25 @@ export function ResetPassword() {
 
   return (
     <div className="auth-page">
+      <div className="corner-controls">
+        <LanguageMenu />
+      </div>
       <Link to="/" className="wordmark">
         Intern<span>EZ</span>
       </Link>
 
       <div className="auth-card form-section">
-        <p className="eyebrow">Reset your password</p>
-        <h1 style={{ marginBottom: 20 }}>Choose a new password</h1>
+        <p className="eyebrow">{t("auth.resetEyebrow")}</p>
+        <h1 style={{ marginBottom: 20 }}>{t("auth.newPasswordTitle")}</h1>
 
         {!token ? (
           <p style={{ color: "var(--blocked)", fontSize: 14 }}>
-            This reset link is missing its token. Request a new one from the{" "}
-            <Link to="/forgot-password">forgot password</Link> page.
+            <T k="auth.missingToken" tags={{ link: <Link to="/forgot-password" /> }} />
           </p>
         ) : done ? (
           <>
             <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 16 }}>
-              Your password has been updated.
+              {t("auth.passwordUpdated")}
             </p>
             <button
               type="button"
@@ -58,13 +64,13 @@ export function ResetPassword() {
               style={{ width: "100%" }}
               onClick={() => navigate("/login")}
             >
-              Log in
+              {t("auth.logIn")}
             </button>
           </>
         ) : (
           <form onSubmit={handleSubmit}>
             <div className="field">
-              <label htmlFor="password">New password</label>
+              <label htmlFor="password">{t("auth.newPassword")}</label>
               <input
                 id="password"
                 type="password"
@@ -77,7 +83,7 @@ export function ResetPassword() {
               />
             </div>
             <div className="field">
-              <label htmlFor="confirmPassword">Confirm password</label>
+              <label htmlFor="confirmPassword">{t("auth.confirmPassword")}</label>
               <input
                 id="confirmPassword"
                 type="password"
@@ -93,7 +99,7 @@ export function ResetPassword() {
             {error && <p style={{ color: "var(--blocked)", fontSize: 13, marginBottom: 16 }}>{error}</p>}
 
             <button type="submit" className="btn btn-primary" style={{ width: "100%" }} disabled={submitting}>
-              {submitting ? "Updating…" : "Update password"}
+              {submitting ? t("auth.updating") : t("auth.updatePassword")}
             </button>
           </form>
         )}
