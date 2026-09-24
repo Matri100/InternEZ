@@ -5,7 +5,7 @@ import { EDUCATION_LEVEL_RANK, INTERESTS, SKILLS } from "../../data/reference.js
 import { detectListingLanguage } from "../language.js";
 import { isInternshipTitle } from "./filter.js";
 import { mapLocationToCountry } from "./mapCountry.js";
-import { stripHtml } from "./stripHtml.js";
+import { cleanInline, stripHtml } from "./stripHtml.js";
 import type { ActiveJobsDbJob } from "./activeJobsDb.js";
 import type { Company, CountryCode, EducationLevel, Listing, WorkArrangement } from "../../types/domain.js";
 
@@ -143,17 +143,17 @@ export function normalizeActiveJob(
   country: CountryCode,
   now: Date = new Date()
 ): NormalizedJob | { skipped: SkipReason } {
-  const title = job.title.trim();
+  const title = cleanInline(job.title);
   const isInternship = isInternshipTitle(title) || (job.ai_employment_type ?? []).includes("INTERN");
   if (!isInternship) return { skipped: "notInternship" };
 
   // The API's location filter is a text search, so a multi-city posting can
   // match one country while listing another first — pick the location
   // that's actually in the country being synced.
-  const location = (job.locations_derived ?? []).find((l) => mapLocationToCountry(l) === country);
+  const location = (job.locations_derived ?? []).map(cleanInline).find((l) => mapLocationToCountry(l) === country);
   if (!location) return { skipped: "wrongCountry" };
 
-  const organization = job.organization?.trim();
+  const organization = job.organization ? cleanInline(job.organization) : "";
   if (!organization) return { skipped: "noEmployer" };
 
   const domain = employerDomain(job);
@@ -182,9 +182,12 @@ export function normalizeActiveJob(
       department: "",
       workArrangement: toWorkArrangement(job.ai_work_arrangement),
       requiredEducationLevel: toEducationLevel(job.ai_education),
+      // The feed has no structured start date or length. "Flexible" is what
+      // the type and the match score need; startLabel stays empty so the UI
+      // says "Not specified" instead of claiming the start is flexible.
       duration: "Flexible",
       startDate: "flexible",
-      startLabel: "Flexible",
+      startLabel: "",
       endLabel: "",
       compensation: toCompensation(job),
       applicationDeadline: validThrough ? validThrough.toISOString().slice(0, 10) : "",

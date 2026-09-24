@@ -6,6 +6,7 @@ import { CompanyLogo } from "./CompanyLogo";
 import { MetaRow } from "./MetaRow";
 import { BookmarkIcon } from "./icons";
 import { useReferenceData } from "../context/ReferenceData";
+import { deadlineLabel, durationLabel, startLabel } from "../lib/listingFacts";
 
 export function ListingCard({
   listing,
@@ -31,6 +32,8 @@ export function ListingCard({
     const name = reference?.regions.flatMap((r) => r.countries).find((c) => c.code === code)?.name ?? code;
     return `${name} citizens only`;
   }, [listing.eligibility.citizenOnly, reference]);
+  const start = startLabel(listing);
+  const deadline = deadlineLabel(listing);
 
   return (
     <div className="listing-card">
@@ -48,7 +51,12 @@ export function ListingCard({
             </span>
             <span className="detail-row">
               <MetaRow
-                items={[listing.location, listing.workArrangement, listing.duration, `Starts ${listing.startLabel}`]}
+                items={[
+                  listing.location,
+                  listing.workArrangement,
+                  durationLabel(listing),
+                  start && `Starts ${start}`,
+                ]}
               />
             </span>
           </div>
@@ -93,7 +101,7 @@ export function ListingCard({
       </div>
 
       <div className="listing-card-footer">
-        <span className="listing-card-deadline">Apply by {listing.applicationDeadline}</span>
+        <span className="listing-card-deadline">{deadline && `Apply by ${deadline}`}</span>
         <button type="button" className="btn btn-secondary btn-sm" onClick={onApply}>
           Apply
         </button>

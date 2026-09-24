@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { MetaRow } from "../components/MetaRow";
+import { formatDate } from "../lib/listingFacts";
 import type { Company, Listing } from "../types/domain";
 
 export function CompanyDashboard() {
@@ -80,7 +81,11 @@ export function CompanyDashboard() {
               <h3>{listing.title}</h3>
               <span className="company">
                 <MetaRow
-                  items={[listing.location, listing.workArrangement, `Apply by ${listing.applicationDeadline || "—"}`]}
+                  items={[
+                    listing.location,
+                    listing.workArrangement,
+                    listing.applicationDeadline && `Apply by ${formatDate(listing.applicationDeadline)}`,
+                  ]}
                 />
               </span>
             </div>

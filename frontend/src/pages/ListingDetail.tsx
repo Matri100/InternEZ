@@ -9,7 +9,12 @@ import { CompanyLogo } from "../components/CompanyLogo";
 import { Description } from "../components/Description";
 import { MetaRow } from "../components/MetaRow";
 import { BookmarkIcon } from "../components/icons";
+import { NOT_SPECIFIED, deadlineLabel, durationLabel, startLabel } from "../lib/listingFacts";
 import type { ListingWithComputed } from "../types/domain";
+
+function FactValue({ value }: { value: string | null }) {
+  return value ? <span>{value}</span> : <span className="fact-missing">{NOT_SPECIFIED}</span>;
+}
 
 export function ListingDetail() {
   const { id } = useParams<{ id: string }>();
@@ -75,7 +80,7 @@ export function ListingDetail() {
                   {listing.company.verified && <span className="verified-mark" title="Verified employer"> ✓</span>}
                 </span>
                 <span className="detail-row">
-                  <MetaRow items={[listing.location, listing.workArrangement, listing.duration]} />
+                  <MetaRow items={[listing.location, listing.workArrangement, durationLabel(listing)]} />
                 </span>
               </div>
             </div>
@@ -169,8 +174,12 @@ export function ListingDetail() {
               <span>{listing.requiredEducationLevel}</span>
             </div>
             <div className="sidebar-fact">
+              <span>Duration</span>
+              <FactValue value={durationLabel(listing)} />
+            </div>
+            <div className="sidebar-fact">
               <span>Start</span>
-              <span>{listing.startLabel}</span>
+              <FactValue value={startLabel(listing)} />
             </div>
             {listing.endLabel && (
               <div className="sidebar-fact">
@@ -178,18 +187,14 @@ export function ListingDetail() {
                 <span>{listing.endLabel}</span>
               </div>
             )}
-            {listing.applicationDeadline && (
-              <div className="sidebar-fact">
-                <span>Deadline</span>
-                <span>{listing.applicationDeadline}</span>
-              </div>
-            )}
-            {listing.compensation && (
-              <div className="sidebar-fact">
-                <span>Compensation</span>
-                <span>{listing.compensation}</span>
-              </div>
-            )}
+            <div className="sidebar-fact">
+              <span>Deadline</span>
+              <FactValue value={deadlineLabel(listing)} />
+            </div>
+            <div className="sidebar-fact">
+              <span>Compensation</span>
+              <FactValue value={listing.compensation || null} />
+            </div>
           </div>
 
           <button type="button" className="btn btn-primary" onClick={() => setApplying(true)} disabled={applied}>

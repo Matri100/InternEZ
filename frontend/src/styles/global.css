@@ -1639,6 +1639,12 @@ fieldset {
   text-align: right;
 }
 
+.sidebar-fact span.fact-missing {
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
 .application-list {
   display: flex;
   flex-direction: column;

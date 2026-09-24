@@ -1,12 +1,9 @@
-// Runs once, only against an empty database — inserts the reference
-// companies/listings every account can browse, plus two demo accounts
-// (one applicant, one company) so the app is fully explorable immediately
-// after a fresh install, without anyone having to sign up first.
+// Runs once, only against an empty database — inserts two demo accounts
+// (one applicant, one company) so the app is explorable immediately after
+// a fresh install, without anyone having to sign up first.
 import { pool } from "./database.js";
 import { db } from "../models/store.js";
 import { hashPassword } from "../services/passwords.js";
-import { detectListingLanguage } from "../services/language.js";
-import { companies, listings } from "../data/seed.js";
 import type { Applicant } from "../types/domain.js";
 
 export const DEMO_APPLICANT_EMAIL = "demo.applicant@internez.eu";
@@ -14,63 +11,28 @@ export const DEMO_COMPANY_EMAIL = "demo.company@internez.eu";
 export const DEMO_PASSWORD = "Demo1234!";
 
 const DEMO_APPLICANT_ID = "demo_applicant";
-const DEMO_COMPANY_ID = "co_nordwind"; // owns the seeded Nordwind listings
+// Kept from when the demo company was the fictional "Nordwind Robotics" —
+// production's existing demo login is this id (renamed in database.ts).
+const DEMO_COMPANY_ID = "co_nordwind";
 
 export async function seedIfEmpty(): Promise<void> {
   const { rows } = await pool.query(`SELECT COUNT(*) AS n FROM users`);
   if (Number(rows[0].n) > 0) return;
 
-  for (const company of companies) {
-    await db.saveCompany(company.id, {
-      name: company.name,
-      verified: company.verified,
-      logoUrl: company.logoUrl,
-      description: company.description,
-      website: company.website,
-      headquarters: company.headquarters,
-      companySize: company.companySize,
-    });
-  }
+  // Real listings come from the ingestion feed (services/ingestion/), not
+  // the seed — the demo company exists only as a login for trying the
+  // company side, and owns no listings until one is posted from it.
+  await db.saveCompany(DEMO_COMPANY_ID, {
+    name: "InternEZ Demo Company",
+    verified: false,
+    logoUrl: null,
+    description: "Demo account for trying the company side of InternEZ.",
+    website: "",
+    headquarters: null,
+    companySize: null,
+  });
 
-  const insertListingSql = `INSERT INTO listings (
-      id, company_id, created_at, title, location, country, origin, department, work_arrangement,
-      required_education_level, duration, start_date, start_label, end_label, compensation,
-      application_deadline, description, requirements, skills, target_fields, required_languages,
-      industries, preferred_qualifications, eligibility, extra_questions, language, apply_url
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)`;
-  for (const listing of listings) {
-    await pool.query(insertListingSql, [
-      listing.id,
-      listing.companyId,
-      listing.createdAt,
-      listing.title,
-      listing.location,
-      listing.country,
-      listing.origin,
-      listing.department,
-      listing.workArrangement,
-      listing.requiredEducationLevel,
-      listing.duration,
-      listing.startDate,
-      listing.startLabel,
-      listing.endLabel,
-      listing.compensation,
-      listing.applicationDeadline,
-      listing.description,
-      JSON.stringify(listing.requirements),
-      JSON.stringify(listing.skills),
-      JSON.stringify(listing.targetFields),
-      JSON.stringify(listing.requiredLanguages),
-      JSON.stringify(listing.industries),
-      JSON.stringify(listing.preferredQualifications),
-      JSON.stringify(listing.eligibility),
-      JSON.stringify(listing.extraQuestions),
-      detectListingLanguage(listing.title, listing.description),
-      listing.applyUrl,
-    ]);
-  }
-
-  // --- demo company account, reusing Nordwind's id so it owns real listings ---
+  // --- demo company account ---
   await db.createUser({
     id: DEMO_COMPANY_ID,
     email: DEMO_COMPANY_EMAIL,
@@ -149,21 +111,6 @@ export async function seedIfEmpty(): Promise<void> {
       skills: ["Python", "Machine Learning"],
     },
   ]);
-
-  // A sample application, so Applications/Applicants pages aren't empty either.
-  await db.createApplication({
-    applicantId: DEMO_APPLICANT_ID,
-    listingId: "l_nordwind_swe",
-    overridden: false,
-    answers: [
-      {
-        key: "why_robotics",
-        answer:
-          "I love the intersection of software and the physical world — robotics is where my ML and systems interests actually meet.",
-      },
-      { key: "relocation_ok", answer: "Yes" },
-    ],
-  });
 
   console.log(`Seeded database with demo accounts:
   Applicant — ${DEMO_APPLICANT_EMAIL} / ${DEMO_PASSWORD}

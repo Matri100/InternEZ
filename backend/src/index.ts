@@ -3,6 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import session from "express-session";
 import { seedIfEmpty } from "./db/seed.js";
+import { repairSourcedListingText } from "./db/repairs.js";
 import { PgSessionStore } from "./db/sessionStore.js";
 import { authRouter } from "./routes/auth.js";
 import { profileRouter } from "./routes/profile.js";
@@ -106,6 +107,8 @@ app.use("/api/autofill", autofillRouter);
 
 seedIfEmpty()
   .catch((err) => console.error("Seeding failed:", err))
+  .then(() => repairSourcedListingText())
+  .catch((err) => console.error("Listing text repair failed:", err))
   .finally(() => {
     app.listen(PORT, () => {
       console.log(`InternEZ backend listening on http://localhost:${PORT}`);
