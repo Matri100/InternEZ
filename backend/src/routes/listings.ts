@@ -2,25 +2,37 @@ import { Router } from "express";
 import { db } from "../models/store.js";
 import { computeEligibility } from "../services/eligibility.js";
 import { computeMatch } from "../services/matching.js";
-import type { ListingWithComputed, SavedSearchFilters, WorkArrangement, InternshipLength } from "../types/domain.js";
+import { searchListings } from "../services/listingSearch.js";
+import { parseSearchFilters } from "../services/savedSearch.js";
+import type { ListingSearchQuery, ListingSort, ListingWithComputed } from "../types/domain.js";
 
 export const listingsRouter = Router();
 
-const VALID_WORK_ARRANGEMENTS: WorkArrangement[] = ["On-site", "Hybrid", "Remote"];
-const VALID_DURATIONS: InternshipLength[] = ["3 months", "6 months", "12 months", "Flexible"];
+const SORTS: ListingSort[] = ["match", "newest", "deadline", "company"];
 
-function parseSavedSearchFilters(body: any): SavedSearchFilters {
-  const raw = body?.filters ?? {};
+// "?countries=DE,FR&languages=German" — list filters travel as
+// comma-separated values (no filter value contains a comma: cities are
+// the part of a location before its first comma).
+function listParam(value: unknown): string[] {
+  return typeof value === "string" ? value.split(",").map((v) => v.trim()).filter(Boolean) : [];
+}
+
+function parseListingSearchQuery(query: Record<string, unknown>): ListingSearchQuery {
+  const page = Number.parseInt(String(query.page ?? "1"), 10);
   return {
-    query: typeof raw.query === "string" ? raw.query.slice(0, 200) : "",
-    workArrangements: Array.isArray(raw.workArrangements)
-      ? raw.workArrangements.filter((w: unknown): w is WorkArrangement => VALID_WORK_ARRANGEMENTS.includes(w as WorkArrangement))
-      : [],
-    durations: Array.isArray(raw.durations)
-      ? raw.durations.filter((d: unknown): d is InternshipLength => VALID_DURATIONS.includes(d as InternshipLength))
-      : [],
-    fieldOfStudy: typeof raw.fieldOfStudy === "string" ? raw.fieldOfStudy : "",
-    country: typeof raw.country === "string" ? raw.country : "",
+    ...parseSearchFilters({
+      query: query.q,
+      countries: listParam(query.countries),
+      cities: listParam(query.cities),
+      languages: listParam(query.languages),
+      workArrangements: listParam(query.arrangements),
+      durations: listParam(query.durations),
+      fieldOfStudy: query.field,
+    }),
+    directOnly: query.direct === "1",
+    eligibleOnly: query.eligible === "1",
+    sort: SORTS.includes(query.sort as ListingSort) ? (query.sort as ListingSort) : "match",
+    page: Number.isFinite(page) && page > 0 ? page : 1,
   };
 }
 
@@ -45,11 +57,18 @@ async function withComputed(listingId: string, applicantId: string): Promise<Lis
 
 listingsRouter.get("/", async (req, res) => {
   const applicantId = req.session.userId!;
-  const listings = await db.listListings();
-  const computed = await Promise.all(listings.map((l) => withComputed(l.id, applicantId)));
-  const results = computed.filter((l): l is ListingWithComputed => l !== null);
-  results.sort((a, b) => b.match.total - a.match.total);
-  res.json(results);
+  const [applicant, rows, savedIds] = await Promise.all([
+    db.getApplicant(applicantId),
+    db.listVisibleListingRows(),
+    db.listSavedListingIds(applicantId),
+  ]);
+  if (!applicant) {
+    res.status(404).json({ error: "Applicant profile not found" });
+    return;
+  }
+  res.json(
+    searchListings({ rows, applicant, savedIds: new Set(savedIds), query: parseListingSearchQuery(req.query) })
+  );
 });
 
 // Must come before "/:id" — otherwise "saved" would be matched as an id.
@@ -77,7 +96,7 @@ listingsRouter.post("/saved-searches", async (req, res) => {
   const search = await db.createSavedSearch({
     applicantId: req.session.userId!,
     name,
-    filters: parseSavedSearchFilters(req.body),
+    filters: parseSearchFilters(req.body?.filters),
   });
   res.status(201).json(search);
 });

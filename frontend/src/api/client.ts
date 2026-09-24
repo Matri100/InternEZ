@@ -12,6 +12,7 @@ import type {
   InterviewProposal,
   InterviewProposalStatus,
   Listing,
+  ListingSearchResult,
   ListingWithComputed,
   Message,
   Notification,
@@ -96,7 +97,8 @@ export const api = {
   saveVoluntaryDisclosures: (input: VoluntaryDisclosures) =>
     request<VoluntaryDisclosures>("/profile/voluntary-disclosures", { method: "PUT", body: JSON.stringify(input) }),
 
-  getListings: () => request<ListingWithComputed[]>("/listings"),
+  // `params` is a Browse URL query string (see lib/browseQuery.ts).
+  searchListings: (params: string) => request<ListingSearchResult>(`/listings${params ? `?${params}` : ""}`),
   getListing: (id: string) => request<ListingWithComputed>(`/listings/${id}`),
   getReusedAnswers: (id: string) =>
     request<{ answers: Record<string, string> }>(`/listings/${id}/reused-answers`).then((r) => r.answers),

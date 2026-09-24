@@ -136,9 +136,10 @@ companyRouter.post("/listings", async (req, res) => {
   // Event-driven instead of a polling job: check this one new listing
   // against every applicant's saved searches right now, rather than
   // periodically re-scanning all listings against all searches.
-  const savedSearches = await db.listAllSavedSearches();
+  const company = await db.getCompany(listing.companyId);
+  const savedSearches = company ? await db.listAllSavedSearches() : [];
   for (const search of savedSearches) {
-    if (!matchesSavedSearch(listing, search.filters)) continue;
+    if (!matchesSavedSearch(listing, company!, search.filters)) continue;
     await db.createNotification({
       userId: search.applicantId,
       role: "applicant",

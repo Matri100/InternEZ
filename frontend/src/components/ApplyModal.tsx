@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import type { ListingWithComputed } from "../types/domain";
+import type { ListingSummary } from "../types/domain";
 import { api } from "../api/client";
 import { EligibilityFlag } from "./EligibilityFlag";
 import { MetaRow } from "./MetaRow";
 import { ChipGroup } from "./ChipGroup";
 
 interface Props {
-  listing: ListingWithComputed;
+  listing: ListingSummary;
   onClose: () => void;
   onSubmitted: () => void;
 }
