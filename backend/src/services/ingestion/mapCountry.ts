@@ -129,11 +129,13 @@ export function mapLocationToCountry(location: string): CountryCode | null {
     const byName = NAME_TO_CODE.get(lower) ?? ALIASES[lower] ?? CITY_TO_CODE[lower];
     if (byName) return byName;
 
-    // A bare 2-letter token that happens to be one of our 31 codes (ATS
-    // location fields sometimes give "DE" / "PL" directly).
-    const upper = token.toUpperCase();
-    if (upper.length === 2 && VALID_CODES.has(upper as CountryCode)) {
-      return upper as CountryCode;
+    // A bare 2-letter token that is one of our 31 codes (ATS location
+    // fields sometimes give "DE" / "PL" directly) — but only when written
+    // in capitals. Splitting on hyphens turns "Ile-de-France" into "de",
+    // French for "of", which a case-insensitive check read as Germany:
+    // every Paris-region internship was rejected from the France sync.
+    if (token.length === 2 && token === token.toUpperCase() && VALID_CODES.has(token as CountryCode)) {
+      return token as CountryCode;
     }
   }
 
