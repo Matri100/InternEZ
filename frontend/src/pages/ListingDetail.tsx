@@ -6,6 +6,7 @@ import { MatchBar } from "../components/MatchBar";
 import { MatchSummary } from "../components/MatchSummary";
 import { ApplyModal } from "../components/ApplyModal";
 import { CompanyLogo } from "../components/CompanyLogo";
+import { Description } from "../components/Description";
 import { MetaRow } from "../components/MetaRow";
 import { BookmarkIcon } from "../components/icons";
 import type { ListingWithComputed } from "../types/domain";
@@ -101,7 +102,7 @@ export function ListingDetail() {
         <div>
           <div className="detail-section">
             <h3>About this role</h3>
-            <p style={{ color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>{listing.description}</p>
+            <Description text={listing.description} />
           </div>
 
           {listing.requirements.length > 0 && (

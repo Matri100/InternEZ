@@ -1577,13 +1577,27 @@ fieldset {
 }
 
 .detail-section ul {
-  margin: 0;
+  margin: 0 0 var(--space-4);
   padding-left: 20px;
   color: var(--text-secondary);
 }
 
 .detail-section li {
   margin-bottom: var(--space-1);
+}
+
+/* A sourced listing's description (see Description.tsx) — plain-text
+   paragraphs/headings/lists parsed back into real elements. */
+.description p {
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-4);
+}
+
+.description-heading {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-2);
 }
 
 .detail-sidebar {
