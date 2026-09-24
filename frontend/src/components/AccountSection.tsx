@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useI18n } from "../i18n";
 
 interface Props {
   exportUrl: string;
@@ -18,6 +19,7 @@ export function AccountSection({ exportUrl, onDeleteAccount }: Props) {
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useI18n();
 
   async function handleDelete() {
     setDeleting(true);
@@ -27,7 +29,7 @@ export function AccountSection({ exportUrl, onDeleteAccount }: Props) {
       await logout();
       navigate("/");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't delete your account");
+      setError(t("account.deleteError"));
       setDeleting(false);
     }
   }
@@ -35,29 +37,28 @@ export function AccountSection({ exportUrl, onDeleteAccount }: Props) {
   return (
     <section className="form-section">
       <div className="form-section-header">
-        <h2>Your data</h2>
+        <h2>{t("account.title")}</h2>
       </div>
       <p className="field-hint" style={{ maxWidth: "56ch", marginBottom: "var(--space-4)" }}>
-        Download everything InternEZ has stored about your account, or permanently delete it. Deletion removes
-        your profile, applications, messages, and saved items immediately and can't be undone.
+        {t("account.intro")}
       </p>
       <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         <a href={exportUrl} className="btn btn-secondary btn-sm">
-          Download my data
+          {t("account.download")}
         </a>
         {confirming ? (
           <>
-            <span style={{ fontSize: 13, color: "var(--blocked)" }}>Delete your account? This can't be undone.</span>
+            <span style={{ fontSize: 13, color: "var(--blocked)" }}>{t("account.confirm")}</span>
             <button type="button" className="btn btn-sm" style={{ borderColor: "var(--blocked)", color: "var(--blocked)" }} onClick={handleDelete} disabled={deleting}>
-              {deleting ? "Deleting…" : "Yes, delete my account"}
+              {deleting ? t("account.deleting") : t("account.yesDelete")}
             </button>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirming(false)} disabled={deleting}>
-              Cancel
+              {t("common.cancel")}
             </button>
           </>
         ) : (
           <button type="button" className="btn btn-ghost btn-sm" style={{ color: "var(--blocked)" }} onClick={() => setConfirming(true)}>
-            Delete my account
+            {t("account.delete")}
           </button>
         )}
       </div>

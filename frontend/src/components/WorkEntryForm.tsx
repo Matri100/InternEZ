@@ -1,6 +1,7 @@
 import type { FieldGroup, SkillGroup, WorkExperienceEntry } from "../types/domain";
 import { SearchableMultiSelect } from "./SearchableMultiSelect";
 import { MonthYearPicker } from "./MonthYearPicker";
+import { useI18n } from "../i18n";
 
 interface Props {
   entry: WorkExperienceEntry;
@@ -12,23 +13,24 @@ interface Props {
 }
 
 export function WorkEntryForm({ entry, index, fieldGroups, skillGroups, onChange, onRemove }: Props) {
+  const { t, ref } = useI18n();
   return (
     <div className="edu-entry">
-      <button type="button" className="edu-entry-remove" onClick={onRemove} aria-label="Remove work experience entry">
-        Remove
+      <button type="button" className="edu-entry-remove" onClick={onRemove} aria-label={t("entry.removeWork")}>
+        {t("entry.remove")}
       </button>
       <div className="field-row">
         <div className="field">
-          <label>Title / role</label>
+          <label>{t("entry.titleRole")}</label>
           <input
             className="input"
             value={entry.title}
-            placeholder={`Work experience ${index + 1}`}
+            placeholder={t("entry.workPlaceholder", { n: index + 1 })}
             onChange={(e) => onChange({ title: e.target.value })}
           />
         </div>
         <div className="field">
-          <label>Organization</label>
+          <label>{t("entry.organization")}</label>
           <input
             className="input"
             value={entry.organization}
@@ -37,13 +39,13 @@ export function WorkEntryForm({ entry, index, fieldGroups, skillGroups, onChange
         </div>
       </div>
       <div className="field">
-        <label>Field / domain</label>
+        <label>{t("entry.fieldDomain")}</label>
         <select className="input" value={entry.field} onChange={(e) => onChange({ field: e.target.value })}>
           {fieldGroups.map((group) => (
-            <optgroup key={group.category} label={group.category}>
+            <optgroup key={group.category} label={ref("fieldCategory", group.category)}>
               {group.fields.map((f) => (
                 <option key={f} value={f}>
-                  {f}
+                  {ref("field", f)}
                 </option>
               ))}
             </optgroup>
@@ -52,14 +54,14 @@ export function WorkEntryForm({ entry, index, fieldGroups, skillGroups, onChange
       </div>
       <div className="field-row">
         <div className="field">
-          <label>Start</label>
+          <label>{t("entry.start")}</label>
           <MonthYearPicker value={entry.startDate} onChange={(v) => onChange({ startDate: v })} />
         </div>
         <div className="field">
-          <label>End</label>
+          <label>{t("entry.end")}</label>
           {entry.endDate === "Present" ? (
             <div className="input month-picker-trigger" style={{ color: "var(--text-secondary)" }}>
-              Present
+              {t("entry.present")}
             </div>
           ) : (
             <MonthYearPicker value={entry.endDate} onChange={(v) => onChange({ endDate: v })} />
@@ -70,17 +72,17 @@ export function WorkEntryForm({ entry, index, fieldGroups, skillGroups, onChange
               checked={entry.endDate === "Present"}
               onChange={(e) => onChange({ endDate: e.target.checked ? "Present" : "" })}
             />
-            I currently work here
+            {t("entry.currentlyWorkHere")}
           </label>
         </div>
       </div>
       <div className="field">
-        <label>Skills used</label>
+        <label>{t("entry.skillsUsed")}</label>
         <SearchableMultiSelect
           groups={skillGroups.map((g) => ({ category: g.category, options: g.skills }))}
           selected={entry.skills}
           onChange={(skills) => onChange({ skills })}
-          placeholder="Search skills…"
+          placeholder={t("profile.searchSkills")}
         />
       </div>
     </div>

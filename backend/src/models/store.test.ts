@@ -258,6 +258,24 @@ describe("notifications", () => {
 
     expect(await db.countUnreadNotifications(sharedId, "company")).toBe(0);
   });
+
+  it("keeps the values a notification is worded from, so it can be shown in any language", async () => {
+    const userId = randomUUID();
+    await db.createNotification({
+      userId,
+      role: "applicant",
+      type: "status_change",
+      title: "Offer extended",
+      body: "An offer has been extended for Data Intern.",
+      params: { status: "offer", listingTitle: "Data Intern" },
+    });
+    await db.createNotification({ userId, role: "applicant", type: "status_change", title: "Old", body: "Old" });
+
+    const stored = await db.listNotifications(userId, "applicant");
+    expect(stored.map((n) => n.params)).toEqual(
+      expect.arrayContaining([{ status: "offer", listingTitle: "Data Intern" }, null])
+    );
+  });
 });
 
 describe("extension tokens", () => {

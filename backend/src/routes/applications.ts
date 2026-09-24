@@ -81,6 +81,7 @@ applicationsRouter.post("/", writeLimiter, async (req, res) => {
     type: "new_application",
     title: "New application received",
     body: `${applicant?.name || "An applicant"} applied to ${listing.title}.`,
+    params: { applicantName: applicant?.name ?? "", listingTitle: listing.title },
     link: "/company/applicants",
   });
 

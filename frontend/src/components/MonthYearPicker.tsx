@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState } from "react";
+import { useI18n } from "../i18n";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
 
+// English on purpose: PostListing stores this text as a listing's
+// start/end label. The picker itself shows months in the interface
+// language (see below).
 export function formatMonthYear(value: string): string {
   if (!value) return "";
   const [y, m] = value.split("-");
@@ -33,6 +37,13 @@ export function MonthYearPicker({ value, onChange, placeholder, minYear = 2015, 
     return Number.isFinite(y) ? y : new Date().getFullYear();
   });
   const containerRef = useRef<HTMLDivElement>(null);
+  const { t, formatDate } = useI18n();
+  const monthName = (index: number, style: "long" | "short") =>
+    formatDate(new Date(2000, index, 1), { month: style });
+  const displayValue = (v: string) => {
+    const [y, m] = v.split("-").map(Number);
+    return y && m ? formatDate(new Date(y, m - 1, 1), { month: "long", year: "numeric" }) : v;
+  };
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
@@ -62,7 +73,11 @@ export function MonthYearPicker({ value, onChange, placeholder, minYear = 2015, 
         aria-haspopup="dialog"
         aria-expanded={open}
       >
-        {value ? formatMonthYear(value) : <span className="month-picker-placeholder">{placeholder ?? "Select month"}</span>}
+        {value ? (
+          displayValue(value)
+        ) : (
+          <span className="month-picker-placeholder">{placeholder ?? t("picker.selectMonth")}</span>
+        )}
       </button>
       {open && (
         <div className="month-picker-popover" role="dialog">
@@ -72,7 +87,7 @@ export function MonthYearPicker({ value, onChange, placeholder, minYear = 2015, 
               className="btn btn-ghost btn-sm"
               onClick={() => setViewYear((y) => Math.max(minYear, y - 1))}
               disabled={viewYear <= minYear}
-              aria-label="Previous year"
+              aria-label={t("picker.previousYear")}
             >
               ‹
             </button>
@@ -82,7 +97,7 @@ export function MonthYearPicker({ value, onChange, placeholder, minYear = 2015, 
               className="btn btn-ghost btn-sm"
               onClick={() => setViewYear((y) => Math.min(maxYear, y + 1))}
               disabled={viewYear >= maxYear}
-              aria-label="Next year"
+              aria-label={t("picker.nextYear")}
             >
               ›
             </button>
@@ -94,14 +109,15 @@ export function MonthYearPicker({ value, onChange, placeholder, minYear = 2015, 
                 key={m}
                 className={`month-picker-cell ${selectedYear === viewYear && selectedMonth === i + 1 ? "selected" : ""}`}
                 onClick={() => pickMonth(i)}
+                aria-label={monthName(i, "long")}
               >
-                {m.slice(0, 3)}
+                {monthName(i, "short")}
               </button>
             ))}
           </div>
           {value && (
             <button type="button" className="btn btn-ghost btn-sm month-picker-clear" onClick={() => { onChange(""); setOpen(false); }}>
-              Clear
+              {t("picker.clear")}
             </button>
           )}
         </div>

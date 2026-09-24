@@ -1,5 +1,6 @@
 import type { ProjectEntry, SkillGroup } from "../types/domain";
 import { SearchableMultiSelect } from "./SearchableMultiSelect";
+import { useI18n } from "../i18n";
 
 interface Props {
   entry: ProjectEntry;
@@ -10,32 +11,33 @@ interface Props {
 }
 
 export function ProjectEntryForm({ entry, index, skillGroups, onChange, onRemove }: Props) {
+  const { t } = useI18n();
   return (
     <div className="edu-entry">
-      <button type="button" className="edu-entry-remove" onClick={onRemove} aria-label="Remove project">
-        Remove
+      <button type="button" className="edu-entry-remove" onClick={onRemove} aria-label={t("entry.removeProject")}>
+        {t("entry.remove")}
       </button>
       <div className="field">
-        <label>Project title</label>
+        <label>{t("entry.projectTitle")}</label>
         <input
           className="input"
           value={entry.title}
-          placeholder={`Project ${index + 1}`}
+          placeholder={t("entry.projectPlaceholder", { n: index + 1 })}
           onChange={(e) => onChange({ title: e.target.value })}
         />
       </div>
       <div className="field">
-        <label>Description</label>
+        <label>{t("entry.description")}</label>
         <textarea
           className="input"
           rows={3}
           value={entry.description}
           onChange={(e) => onChange({ description: e.target.value })}
-          placeholder="What did you build, and what was your role?"
+          placeholder={t("entry.descriptionPlaceholder")}
         />
       </div>
       <div className="field">
-        <label>Link (optional)</label>
+        <label>{t("entry.linkOptional")}</label>
         <input
           className="input"
           value={entry.link}
@@ -44,12 +46,12 @@ export function ProjectEntryForm({ entry, index, skillGroups, onChange, onRemove
         />
       </div>
       <div className="field">
-        <label>Skills used</label>
+        <label>{t("entry.skillsUsed")}</label>
         <SearchableMultiSelect
           groups={skillGroups.map((g) => ({ category: g.category, options: g.skills }))}
           selected={entry.skills}
           onChange={(skills) => onChange({ skills })}
-          placeholder="Search skills…"
+          placeholder={t("profile.searchSkills")}
         />
       </div>
     </div>

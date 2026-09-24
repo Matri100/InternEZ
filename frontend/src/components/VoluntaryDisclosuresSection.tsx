@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
+import { useI18n } from "../i18n";
 import type { VoluntaryDisclosures } from "../types/domain";
 
 const EMPTY: VoluntaryDisclosures = {
@@ -32,6 +33,7 @@ export function VoluntaryDisclosuresSection({
   const [form, setForm] = useState<VoluntaryDisclosures | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const { t, ref } = useI18n();
 
   useEffect(() => {
     api.getVoluntaryDisclosures().then(setForm);
@@ -74,46 +76,42 @@ export function VoluntaryDisclosuresSection({
   return (
     <section className="form-section">
       <div className="form-section-header">
-        <h2>Voluntary self-identification</h2>
-        <span className="field-hint">Entirely optional</span>
+        <h2>{t("disclosures.title")}</h2>
+        <span className="field-hint">{t("disclosures.hint")}</span>
       </div>
       <p className="field-hint" style={{ maxWidth: "60ch", marginBottom: "var(--space-4)" }}>
-        Some companies — mostly US-headquartered ones — ask gender identity, race/ethnicity, veteran, and
-        disability status on their own application forms for equal-opportunity reporting. It's always legally
-        voluntary there too. Answering here is entirely up to you, it's never required to use InternEZ, and
-        it's kept separate from the rest of your profile. If you skip this, the extension will still politely
-        select "prefer not to say" on these questions where a form offers it — no data leaves InternEZ either way.
+        {t("disclosures.intro")}
       </p>
 
       <div className="field-row">
         <div className="field">
-          <label htmlFor="genderIdentity">Gender identity</label>
+          <label htmlFor="genderIdentity">{t("disclosures.gender")}</label>
           <select
             id="genderIdentity"
             className="input"
             value={form.genderIdentity}
             onChange={(e) => set("genderIdentity", e.target.value)}
           >
-            <option value="">Prefer not to answer here</option>
+            <option value="">{t("disclosures.noAnswer")}</option>
             {genderIdentityOptions.map((o) => (
               <option key={o} value={o}>
-                {o}
+                {ref("gender", o)}
               </option>
             ))}
           </select>
         </div>
         <div className="field">
-          <label htmlFor="raceEthnicity">Race / ethnicity</label>
+          <label htmlFor="raceEthnicity">{t("disclosures.race")}</label>
           <select
             id="raceEthnicity"
             className="input"
             value={form.raceEthnicity}
             onChange={(e) => set("raceEthnicity", e.target.value)}
           >
-            <option value="">Prefer not to answer here</option>
+            <option value="">{t("disclosures.noAnswer")}</option>
             {raceEthnicityOptions.map((o) => (
               <option key={o} value={o}>
-                {o}
+                {ref("race", o)}
               </option>
             ))}
           </select>
@@ -121,33 +119,33 @@ export function VoluntaryDisclosuresSection({
       </div>
       <div className="field-row">
         <div className="field">
-          <label htmlFor="veteranStatus">Veteran status</label>
+          <label htmlFor="veteranStatus">{t("disclosures.veteran")}</label>
           <select
             id="veteranStatus"
             className="input"
             value={form.veteranStatus}
             onChange={(e) => set("veteranStatus", e.target.value)}
           >
-            <option value="">Prefer not to answer here</option>
+            <option value="">{t("disclosures.noAnswer")}</option>
             {veteranStatusOptions.map((o) => (
               <option key={o} value={o}>
-                {o}
+                {ref("veteran", o)}
               </option>
             ))}
           </select>
         </div>
         <div className="field">
-          <label htmlFor="disabilityStatus">Disability status</label>
+          <label htmlFor="disabilityStatus">{t("disclosures.disability")}</label>
           <select
             id="disabilityStatus"
             className="input"
             value={form.disabilityStatus}
             onChange={(e) => set("disabilityStatus", e.target.value)}
           >
-            <option value="">Prefer not to answer here</option>
+            <option value="">{t("disclosures.noAnswer")}</option>
             {disabilityStatusOptions.map((o) => (
               <option key={o} value={o}>
-                {o}
+                {ref("disability", o)}
               </option>
             ))}
           </select>
@@ -161,25 +159,23 @@ export function VoluntaryDisclosuresSection({
             checked={form.consentToAutofill}
             onChange={(e) => set("consentToAutofill", e.target.checked)}
           />
-          Let the browser extension use these answers to autofill these questions on application forms
+          {t("disclosures.consent")}
         </label>
         <p className="field-hint" style={{ marginTop: 6, maxWidth: "56ch" }}>
-          Answering the questions above does not by itself share anything with the extension — this is a
-          separate choice. Leave it off and these answers stay in InternEZ only; the extension will still
-          select "prefer not to say" for you where a form offers it.
+          {t("disclosures.consentHint")}
         </p>
       </div>
 
       <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
         <button type="button" className="btn btn-secondary btn-sm" onClick={save} disabled={saving}>
-          {saving ? "Saving…" : "Save"}
+          {saving ? t("common.saving") : t("common.save")}
         </button>
         {hasAnyAnswer && (
           <button type="button" className="btn btn-ghost btn-sm" style={{ color: "var(--blocked)" }} onClick={clearAll} disabled={saving}>
-            Clear my answers
+            {t("disclosures.clear")}
           </button>
         )}
-        {saved && <span style={{ fontSize: 13, color: "var(--ok)" }}>Saved</span>}
+        {saved && <span style={{ fontSize: 13, color: "var(--ok)" }}>{t("profile.saved")}</span>}
       </div>
     </section>
   );

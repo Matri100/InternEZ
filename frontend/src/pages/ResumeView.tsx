@@ -1,41 +1,39 @@
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppData } from "../context/AppData";
 import { useReferenceData } from "../context/ReferenceData";
-import type { CountryCode } from "../types/domain";
+import { useI18n } from "../i18n";
 
-function formatMonthYear(value: string): string {
-  if (!value || value === "Present") return value || "";
-  const [year, month] = value.split("-");
-  if (!month) return year;
-  const date = new Date(Number(year), Number(month) - 1);
-  return date.toLocaleDateString(undefined, { month: "short", year: "numeric" });
-}
-
+// The resume's headings and dates follow the interface language; what the
+// applicant wrote (titles, descriptions, skills) is shown as written.
 export function ResumeView() {
   const { profile, loading } = useAppData();
   const { reference } = useReferenceData();
   const navigate = useNavigate();
+  const { t, ref, formatDate, countryName, languageName } = useI18n();
 
-  const countryName = useMemo(() => {
-    const map = new Map<string, string>();
-    reference?.regions.forEach((r) => r.countries.forEach((c) => map.set(c.code, c.name)));
-    return (code: CountryCode | null | "") => (code ? map.get(code) ?? code : "");
-  }, [reference]);
+  const monthYear = (value: string): string => {
+    if (!value) return "";
+    if (value === "Present") return t("entry.present");
+    const [year, month] = value.split("-");
+    if (!month) return year;
+    return formatDate(new Date(Number(year), Number(month) - 1), { month: "short", year: "numeric" });
+  };
 
   // Printing needs the browser's own print dialog, not a click handler run
   // ahead of the page actually painting — a fresh mount is the signal.
   useEffect(() => {
-    document.title = profile ? `${profile.name || "Resume"} — Resume` : "Resume";
+    const title = t("resume.title");
+    document.title = profile ? `${profile.name || title} — ${title}` : title;
     return () => {
       document.title = "InternEZ";
     };
-  }, [profile]);
+  }, [profile, t]);
 
   if (loading || !profile || !reference) {
     return (
       <div className="page page-narrow">
-        <p style={{ color: "var(--text-secondary)" }}>Loading…</p>
+        <p style={{ color: "var(--text-secondary)" }}>{t("common.loading")}</p>
       </div>
     );
   }
@@ -46,27 +44,29 @@ export function ResumeView() {
     <div className="page page-narrow resume-page">
       <div className="resume-toolbar no-print">
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => navigate(-1)}>
-          Back
+          {t("resume.back")}
         </button>
         <button type="button" className="btn btn-primary btn-sm" onClick={() => window.print()}>
-          Download as PDF
+          {t("resume.download")}
         </button>
       </div>
 
       <article className="resume-doc">
         <header className="resume-doc-header">
-          <h1>{profile.name || "Unnamed applicant"}</h1>
+          <h1>{profile.name || t("resume.unnamed")}</h1>
           <p className="resume-doc-contact">
             {[profile.email, profile.phone, profile.portfolioUrl].filter(Boolean).join("  ·  ")}
           </p>
           <p className="resume-doc-contact">
             {[
-              profile.residence ? `Based in ${countryName(profile.residence)}` : null,
+              profile.residence ? t("resume.basedIn", { country: countryName(profile.residence) }) : null,
               [profile.citizenship, profile.secondCitizenship].filter(Boolean).length > 0
-                ? `${[profile.citizenship, profile.secondCitizenship]
-                    .filter(Boolean)
-                    .map((c) => countryName(c))
-                    .join(" / ")} citizen`
+                ? t("resume.citizen", {
+                    countries: [profile.citizenship, profile.secondCitizenship]
+                      .filter((c): c is NonNullable<typeof c> => Boolean(c))
+                      .map((c) => countryName(c))
+                      .join(" / "),
+                  })
                 : null,
             ]
               .filter(Boolean)
@@ -82,12 +82,12 @@ export function ResumeView() {
 
         {primaryEducation.length > 0 && (
           <section className="resume-doc-section">
-            <h2>Education</h2>
+            <h2>{t("resume.education")}</h2>
             {primaryEducation.map((e) => (
               <div className="resume-doc-entry" key={e.id}>
                 <div className="resume-doc-entry-head">
                   <strong>
-                    {e.level} in {e.field}
+                    {t("resume.degreeIn", { level: t(`education.${e.level}`), field: ref("field", e.field) })}
                   </strong>
                   <span>
                     {e.startYear}
@@ -105,7 +105,7 @@ export function ResumeView() {
 
         {profile.workExperience.length > 0 && (
           <section className="resume-doc-section">
-            <h2>Work experience</h2>
+            <h2>{t("resume.work")}</h2>
             {profile.workExperience.map((w) => (
               <div className="resume-doc-entry" key={w.id}>
                 <div className="resume-doc-entry-head">
@@ -113,7 +113,7 @@ export function ResumeView() {
                     {w.title} — {w.organization}
                   </strong>
                   <span>
-                    {formatMonthYear(w.startDate)} – {formatMonthYear(w.endDate) || "Present"}
+                    {monthYear(w.startDate)} – {monthYear(w.endDate) || t("entry.present")}
                   </span>
                 </div>
                 {w.skills.length > 0 && <p>{w.skills.join(", ")}</p>}
@@ -124,7 +124,7 @@ export function ResumeView() {
 
         {profile.projects.length > 0 && (
           <section className="resume-doc-section">
-            <h2>Projects</h2>
+            <h2>{t("resume.projects")}</h2>
             {profile.projects.map((p) => (
               <div className="resume-doc-entry" key={p.id}>
                 <div className="resume-doc-entry-head">
@@ -140,7 +140,7 @@ export function ResumeView() {
 
         {profile.certifications.length > 0 && (
           <section className="resume-doc-section">
-            <h2>Certifications</h2>
+            <h2>{t("resume.certifications")}</h2>
             {profile.certifications.map((c) => (
               <div className="resume-doc-entry" key={c.id}>
                 <div className="resume-doc-entry-head">
@@ -155,15 +155,19 @@ export function ResumeView() {
 
         {profile.skills.length > 0 && (
           <section className="resume-doc-section">
-            <h2>Skills</h2>
+            <h2>{t("resume.skills")}</h2>
             <p>{profile.skills.join(", ")}</p>
           </section>
         )}
 
         {profile.languages.length > 0 && (
           <section className="resume-doc-section">
-            <h2>Languages</h2>
-            <p>{profile.languages.map((l) => `${l.language} (${l.level})`).join(", ")}</p>
+            <h2>{t("resume.languages")}</h2>
+            <p>
+              {profile.languages
+                .map((l) => `${languageName(l.language)} (${t(`languageLevel.${l.level}`)})`)
+                .join(", ")}
+            </p>
           </section>
         )}
       </article>

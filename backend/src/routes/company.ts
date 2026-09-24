@@ -146,6 +146,7 @@ companyRouter.post("/listings", async (req, res) => {
       type: "saved_search_match",
       title: "New listing matches your saved search",
       body: `"${listing.title}" matches your saved search "${search.name}".`,
+      params: { listingTitle: listing.title, searchName: search.name },
       link: `/listings/${listing.id}`,
     });
   }
@@ -258,6 +259,7 @@ companyRouter.put("/applications/:id/status", async (req, res) => {
         type: "status_change",
         title: copy.title,
         body: copy.body(listing.title),
+        params: { status: updated.status, listingTitle: listing.title },
         link: "/applications",
       });
     }

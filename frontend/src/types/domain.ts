@@ -475,8 +475,10 @@ export interface Notification {
   userId: string;
   role: UserRole;
   type: NotificationType;
+  // English; the text shown is built from type + params (lib/notificationText.ts).
   title: string;
   body: string;
+  params: Record<string, string> | null;
   link: string | null;
   createdAt: string;
   readAt: string | null;

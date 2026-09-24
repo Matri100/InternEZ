@@ -479,8 +479,13 @@ export interface Notification {
   userId: string;
   role: UserRole;
   type: NotificationType;
+  // English text, kept for anything that doesn't know the type. The
+  // frontend words a notification in the interface language from `type`
+  // and `params` (listing title, status, interview time, ...); params is
+  // null for notifications created before it existed.
   title: string;
   body: string;
+  params: Record<string, string> | null;
   link: string | null;
   createdAt: string;
   readAt: string | null;

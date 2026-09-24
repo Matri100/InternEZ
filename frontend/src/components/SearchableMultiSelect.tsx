@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useI18n } from "../i18n";
 
 export interface Option {
   value: string;
@@ -34,6 +35,7 @@ export function SearchableMultiSelect({ groups, options, selected, onChange, pla
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
+  const { t } = useI18n();
 
   const flatGroups: { category: string; options: Option[] }[] = useMemo(() => {
     const source = groups ?? [{ category: "", options: options ?? [] }];
@@ -109,7 +111,7 @@ export function SearchableMultiSelect({ groups, options, selected, onChange, pla
         <input
           className="input"
           value={query}
-          placeholder={placeholder ?? "Type to search…"}
+          placeholder={placeholder ?? t("picker.typeToSearch")}
           onChange={(e) => {
             setQuery(e.target.value);
             setOpen(true);
@@ -145,7 +147,7 @@ export function SearchableMultiSelect({ groups, options, selected, onChange, pla
         )}
         {open && flatVisible.length === 0 && (
           <div className="searchable-select-dropdown">
-            <div className="searchable-select-empty">No matches</div>
+            <div className="searchable-select-empty">{t("picker.noMatches")}</div>
           </div>
         )}
       </div>

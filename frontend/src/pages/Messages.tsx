@@ -3,11 +3,9 @@ import { useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { CalendarIcon } from "../components/icons";
+import { useI18n } from "../i18n";
+import type { MessageKey } from "../i18n/messages/en";
 import type { ConversationSummary, ConversationThread, InterviewProposal, UpcomingInterview } from "../types/domain";
-
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-}
 
 const DURATIONS = [15, 30, 45, 60];
 
@@ -15,12 +13,15 @@ type TimelineItem =
   | { kind: "message"; at: string; id: string }
   | { kind: "interview"; at: string; id: string };
 
-const PROPOSAL_STATUS_LABEL: Record<InterviewProposal["status"], string> = {
-  pending: "Pending",
-  accepted: "Accepted",
-  declined: "Declined",
-  cancelled: "Cancelled",
+const PROPOSAL_STATUS_LABEL: Record<InterviewProposal["status"], MessageKey> = {
+  pending: "messages.statusPending",
+  accepted: "messages.statusAccepted",
+  declined: "messages.statusDeclined",
+  cancelled: "messages.statusCancelled",
 };
+
+// The page is in the interface language; message texts, interview notes
+// and locations are shown exactly as the other person wrote them.
 
 export function Messages() {
   const { user } = useAuth();
@@ -41,6 +42,9 @@ export function Messages() {
   const [proposalLocation, setProposalLocation] = useState("");
   const [proposalNote, setProposalNote] = useState("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const { t, formatDate } = useI18n();
+  const formatTime = (iso: string) =>
+    formatDate(new Date(iso), { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
   const loadConversations = useCallback(() => {
     api.getConversations().then(setConversations);
@@ -110,7 +114,7 @@ export function Messages() {
     if (!activeId || !proposalDate || !proposalTime) return;
     const scheduledAt = new Date(`${proposalDate}T${proposalTime}`);
     if (Number.isNaN(scheduledAt.getTime()) || scheduledAt.getTime() < Date.now()) {
-      setSchedulerError("Pick a date and time in the future.");
+      setSchedulerError(t("messages.futureTime"));
       return;
     }
     setProposing(true);
@@ -125,7 +129,7 @@ export function Messages() {
       setSchedulerOpen(false);
       loadThread(activeId);
     } catch (err) {
-      setSchedulerError(err instanceof Error ? err.message : "Couldn't propose that time.");
+      setSchedulerError(err instanceof Error && err.message ? err.message : t("messages.proposeError"));
     } finally {
       setProposing(false);
     }
@@ -145,7 +149,7 @@ export function Messages() {
   if (!conversations) {
     return (
       <div className="page">
-        <p style={{ color: "var(--text-secondary)" }}>Loading…</p>
+        <p style={{ color: "var(--text-secondary)" }}>{t("common.loading")}</p>
       </div>
     );
   }
@@ -155,16 +159,12 @@ export function Messages() {
       <div className="page">
         <div className="page-header">
           <div>
-            <h1>Messages</h1>
+            <h1>{t("messages.title")}</h1>
           </div>
         </div>
         <div className="empty-state">
-          <h3>No conversations yet</h3>
-          <p>
-            {user?.role === "company"
-              ? "Message an applicant from your applicants list, or from talent search."
-              : "Message a company from one of your applications, or wait for them to reach out."}
-          </p>
+          <h3>{t("messages.emptyTitle")}</h3>
+          <p>{user?.role === "company" ? t("messages.emptyCompany") : t("messages.emptyApplicant")}</p>
         </div>
       </div>
     );
@@ -181,13 +181,13 @@ export function Messages() {
     <div className="page">
       <div className="page-header">
         <div>
-          <h1>Messages</h1>
+          <h1>{t("messages.title")}</h1>
         </div>
       </div>
 
       {upcomingInterviews && upcomingInterviews.length > 0 && (
         <div className="upcoming-interviews">
-          <span className="upcoming-interviews-label">Upcoming interviews</span>
+          <span className="upcoming-interviews-label">{t("messages.upcoming")}</span>
           <div className="upcoming-interviews-list">
             {upcomingInterviews.map((i) => (
               <button type="button" className="upcoming-interview-chip" key={i.id} onClick={() => selectConversation(i.conversationId)}>
@@ -210,7 +210,9 @@ export function Messages() {
             >
               <span className="conversation-item-name">
                 {c.otherParty.name}
-                {c.unreadCount > 0 && <span className="unread-dot" aria-label={`${c.unreadCount} unread`} />}
+                {c.unreadCount > 0 && (
+                  <span className="unread-dot" aria-label={t("messages.unread", { count: c.unreadCount })} />
+                )}
               </span>
               {c.lastMessage && <span className="conversation-item-preview">{c.lastMessage.body}</span>}
             </button>
@@ -220,7 +222,7 @@ export function Messages() {
         <div className="thread-panel">
           {!thread || thread.id !== activeId ? (
             <div style={{ padding: 24, color: "var(--text-secondary)", fontSize: 13.5 }}>
-              Select a conversation to view messages.
+              {t("messages.selectConversation")}
             </div>
           ) : (
             <>
@@ -242,13 +244,13 @@ export function Messages() {
                     <div key={p.id} className={`interview-card ${mine ? "mine" : "theirs"} status-${p.status}`}>
                       <div className="interview-card-head">
                         <CalendarIcon />
-                        <span>Interview proposed</span>
+                        <span>{t("messages.interviewProposed")}</span>
                         <span className={`status-badge ${p.status === "pending" ? "reviewing" : p.status === "accepted" ? "offer" : "rejected"}`}>
-                          {PROPOSAL_STATUS_LABEL[p.status]}
+                          {t(PROPOSAL_STATUS_LABEL[p.status])}
                         </span>
                       </div>
                       <div className="interview-card-body">
-                        <strong>{formatTime(p.scheduledAt)}</strong> · {p.durationMinutes} min
+                        <strong>{formatTime(p.scheduledAt)}</strong> · {t("messages.minutes", { count: p.durationMinutes })}
                         {p.location && <> · {p.location}</>}
                         {p.note && <p style={{ marginTop: 6 }}>{p.note}</p>}
                       </div>
@@ -260,7 +262,7 @@ export function Messages() {
                             onClick={() => respond(p.id, "accepted")}
                             disabled={respondingId === p.id}
                           >
-                            Accept
+                            {t("messages.accept")}
                           </button>
                           <button
                             type="button"
@@ -268,7 +270,7 @@ export function Messages() {
                             onClick={() => respond(p.id, "declined")}
                             disabled={respondingId === p.id}
                           >
-                            Decline
+                            {t("messages.decline")}
                           </button>
                         </div>
                       )}
@@ -280,7 +282,7 @@ export function Messages() {
                             onClick={() => respond(p.id, "cancelled")}
                             disabled={respondingId === p.id}
                           >
-                            Cancel proposal
+                            {t("messages.cancelProposal")}
                           </button>
                         </div>
                       )}
@@ -294,7 +296,7 @@ export function Messages() {
                 <div className="interview-scheduler">
                   <div className="interview-scheduler-row">
                     <label>
-                      <span>Date</span>
+                      <span>{t("messages.date")}</span>
                       <input
                         type="date"
                         className="input"
@@ -304,11 +306,11 @@ export function Messages() {
                       />
                     </label>
                     <label>
-                      <span>Time</span>
+                      <span>{t("messages.time")}</span>
                       <input type="time" className="input" value={proposalTime} onChange={(e) => setProposalTime(e.target.value)} />
                     </label>
                     <label>
-                      <span>Duration</span>
+                      <span>{t("messages.duration")}</span>
                       <select
                         className="input"
                         value={proposalDuration}
@@ -316,7 +318,7 @@ export function Messages() {
                       >
                         {DURATIONS.map((d) => (
                           <option key={d} value={d}>
-                            {d} min
+                            {t("messages.minutes", { count: d })}
                           </option>
                         ))}
                       </select>
@@ -324,14 +326,14 @@ export function Messages() {
                   </div>
                   <input
                     className="input"
-                    placeholder="Location or video call link (optional)"
+                    placeholder={t("messages.locationPlaceholder")}
                     value={proposalLocation}
                     onChange={(e) => setProposalLocation(e.target.value)}
                     style={{ marginTop: 8 }}
                   />
                   <textarea
                     className="input"
-                    placeholder="Note (optional)"
+                    placeholder={t("messages.notePlaceholder")}
                     value={proposalNote}
                     onChange={(e) => setProposalNote(e.target.value)}
                     style={{ marginTop: 8, minHeight: 50 }}
@@ -339,7 +341,7 @@ export function Messages() {
                   {schedulerError && <p style={{ color: "var(--blocked)", fontSize: 12.5, marginTop: 6 }}>{schedulerError}</p>}
                   <div className="interview-scheduler-actions">
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSchedulerOpen(false)}>
-                      Cancel
+                      {t("common.cancel")}
                     </button>
                     <button
                       type="button"
@@ -347,7 +349,7 @@ export function Messages() {
                       onClick={submitProposal}
                       disabled={proposing || !proposalDate || !proposalTime}
                     >
-                      {proposing ? "Sending…" : "Propose time"}
+                      {proposing ? t("messages.sending") : t("messages.proposeTime")}
                     </button>
                   </div>
                 </div>
@@ -358,14 +360,14 @@ export function Messages() {
                   type="button"
                   className="btn btn-ghost btn-sm interview-toggle"
                   onClick={() => (schedulerOpen ? setSchedulerOpen(false) : openScheduler())}
-                  title="Propose an interview time"
-                  aria-label="Propose an interview time"
+                  title={t("messages.proposeInterview")}
+                  aria-label={t("messages.proposeInterview")}
                 >
                   <CalendarIcon />
                 </button>
                 <textarea
                   className="input"
-                  placeholder="Write a message…"
+                  placeholder={t("messages.writePlaceholder")}
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={(e) => {
@@ -376,7 +378,7 @@ export function Messages() {
                   }}
                 />
                 <button type="button" className="btn btn-primary" onClick={send} disabled={sending || !draft.trim()}>
-                  Send
+                  {t("messages.send")}
                 </button>
               </div>
             </>
