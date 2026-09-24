@@ -17,6 +17,7 @@ import {
   type ListFilterKey,
 } from "../lib/browseQuery";
 import { T, useI18n } from "../i18n";
+import { motionReduced } from "../accessibility/settings";
 import type { MessageKey } from "../i18n/messages/en";
 import type { ListingSearchResult, ListingSort, ListingSummary } from "../types/domain";
 
@@ -120,7 +121,7 @@ export function Browse() {
 
   function changePage(page: number) {
     update({ page });
-    resultsTop.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    resultsTop.current?.scrollIntoView({ behavior: motionReduced() ? "auto" : "smooth", block: "start" });
   }
 
   function clearFilters() {

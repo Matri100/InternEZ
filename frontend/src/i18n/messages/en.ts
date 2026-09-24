@@ -30,6 +30,23 @@ const enMessages = {
   "language.label": "Language",
   "language.choose": "Choose language",
 
+  // --- accessibility menu ---
+  "a11y.title": "Accessibility",
+  "a11y.textSize": "Text size",
+  "a11y.sizeNormal": "Normal text",
+  "a11y.sizeLarge": "Large text",
+  "a11y.sizeLarger": "Largest text",
+  "a11y.highContrast": "High contrast",
+  "a11y.highContrastHint": "Stronger colours and outlines",
+  "a11y.underlineLinks": "Underline links",
+  "a11y.underlineLinksHint": "Make links easy to spot",
+  "a11y.wideSpacing": "Wider text spacing",
+  "a11y.wideSpacingHint": "More space between lines and letters",
+  "a11y.reduceMotion": "Reduce motion",
+  "a11y.reduceMotionHint": "Turn off animations",
+  "a11y.reset": "Reset to default",
+  "a11y.skipToContent": "Skip to content",
+
   // --- top bar ---
   "nav.profile": "Profile",
   "nav.browse": "Browse",

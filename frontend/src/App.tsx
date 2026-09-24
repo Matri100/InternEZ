@@ -27,7 +27,9 @@ import { TalentBrowse } from "./pages/TalentBrowse";
 import { CompanyAnalytics } from "./pages/CompanyAnalytics";
 import { NotificationBell } from "./components/NotificationBell";
 import { EarlyAccessGate } from "./components/EarlyAccessGate";
+import { AccessibilityMenu } from "./components/AccessibilityMenu";
 import { LanguageMenu } from "./components/LanguageMenu";
+import { SkipLink } from "./components/SkipLink";
 import { LogOutIcon, MoonIcon, SunIcon } from "./components/icons";
 import { useI18n } from "./i18n";
 
@@ -155,6 +157,7 @@ function TopBar() {
           <button type="button" className="icon-btn" onClick={handleLogout} aria-label={t("nav.logOut")} title={t("nav.logOut")}>
             <LogOutIcon />
           </button>
+          <AccessibilityMenu />
           <LanguageMenu />
         </div>
       </div>
@@ -166,8 +169,11 @@ function AppLayout() {
   return (
     <ReferenceDataProvider>
       <div className="app-shell">
+        <SkipLink />
         <TopBar />
-        <Outlet />
+        <main id="main-content" className="main-content" tabIndex={-1}>
+          <Outlet />
+        </main>
       </div>
     </ReferenceDataProvider>
   );

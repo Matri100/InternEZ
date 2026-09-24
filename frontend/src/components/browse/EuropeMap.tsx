@@ -61,7 +61,10 @@ export default function EuropeMap({
   function trackHover(code: CountryCode, event: React.MouseEvent) {
     const frame = frameRef.current?.getBoundingClientRect();
     if (!frame) return;
-    setHover({ code, x: event.clientX - frame.left, y: event.clientY - frame.top });
+    // Pointer and box are in screen pixels; the tooltip is positioned in
+    // the page's own, which the larger text sizes zoom.
+    const zoom = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--page-zoom")) || 1;
+    setHover({ code, x: (event.clientX - frame.left) / zoom, y: (event.clientY - frame.top) / zoom });
   }
 
   const hoverCount = hover ? counts.get(hover.code) ?? 0 : 0;

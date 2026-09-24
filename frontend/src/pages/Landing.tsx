@@ -1,7 +1,9 @@
 import { Link } from "react-router-dom";
 import { useTheme } from "../hooks/useTheme";
 import { T, useI18n } from "../i18n";
+import { AccessibilityMenu } from "../components/AccessibilityMenu";
 import { LanguageMenu } from "../components/LanguageMenu";
+import { SkipLink } from "../components/SkipLink";
 
 export function Landing() {
   const { theme, toggle } = useTheme();
@@ -9,6 +11,7 @@ export function Landing() {
 
   return (
     <div className="landing">
+      <SkipLink />
       <header className="landing-header">
         <div className="landing-header-inner">
           <span className="wordmark">
@@ -24,72 +27,76 @@ export function Landing() {
             <button type="button" className="theme-toggle" onClick={toggle} aria-label={t("landing.toggleTheme")}>
               {theme === "light" ? t("landing.themeDark") : t("landing.themeLight")}
             </button>
+            <AccessibilityMenu />
             <LanguageMenu />
           </div>
         </div>
       </header>
 
-      <section className="landing-hero">
-        <p className="landing-hero-kicker">{t("landing.kicker")}</p>
-        <h1>
-          <T k="landing.title" tags={{ em: <span className="highlight" /> }} />
-        </h1>
-        <p className="landing-hero-sub">{t("landing.subtitle")}</p>
-        <div className="landing-hero-actions">
-          <Link to="/signup?role=applicant" className="btn btn-primary landing-cta">
-            {t("landing.cta")}
-          </Link>
-          <Link to="/signup?role=company" className="landing-hero-secondary">
-            {t("landing.ctaCompany")}
-          </Link>
-        </div>
-      </section>
+      <main id="main-content" className="main-content" tabIndex={-1}>
+        <section className="landing-hero">
+          <p className="landing-hero-kicker">{t("landing.kicker")}</p>
+          <h1>
+            <T k="landing.title" tags={{ em: <span className="highlight" /> }} />
+          </h1>
+          <p className="landing-hero-sub">{t("landing.subtitle")}</p>
+          <div className="landing-hero-actions">
+            <Link to="/signup?role=applicant" className="btn btn-primary landing-cta">
+              {t("landing.cta")}
+            </Link>
+            <Link to="/signup?role=company" className="landing-hero-secondary">
+              {t("landing.ctaCompany")}
+            </Link>
+          </div>
+        </section>
 
-      <section className="landing-section">
-        <div className="landing-section-heading">
-          <h2>{t("landing.howItWorks")}</h2>
-        </div>
-        <div className="landing-steps">
-          <div className="landing-step">
-            <span className="landing-step-number">01</span>
-            <h3>{t("landing.step1Title")}</h3>
-            <p>{t("landing.step1Body")}</p>
+        <section className="landing-section">
+          <div className="landing-section-heading">
+            <h2>{t("landing.howItWorks")}</h2>
           </div>
-          <div className="landing-step">
-            <span className="landing-step-number">02</span>
-            <h3>{t("landing.step2Title")}</h3>
-            <p>{t("landing.step2Body")}</p>
+          <div className="landing-steps">
+            <div className="landing-step">
+              <span className="landing-step-number">01</span>
+              <h3>{t("landing.step1Title")}</h3>
+              <p>{t("landing.step1Body")}</p>
+            </div>
+            <div className="landing-step">
+              <span className="landing-step-number">02</span>
+              <h3>{t("landing.step2Title")}</h3>
+              <p>{t("landing.step2Body")}</p>
+            </div>
+            <div className="landing-step">
+              <span className="landing-step-number">03</span>
+              <h3>{t("landing.step3Title")}</h3>
+              <p>{t("landing.step3Body")}</p>
+            </div>
           </div>
-          <div className="landing-step">
-            <span className="landing-step-number">03</span>
-            <h3>{t("landing.step3Title")}</h3>
-            <p>{t("landing.step3Body")}</p>
-          </div>
-        </div>
-      </section>
+        </section>
 
-      <section className="landing-section landing-section-alt">
-        <div className="landing-section-heading">
-          <h2>{t("landing.aboutTitle")}</h2>
-        </div>
-        <div className="landing-about">
-          <p>{t("landing.about1")}</p>
-          <p>{t("landing.about2")}</p>
-          <p className="landing-about-focus">{t("landing.about3")}</p>
-        </div>
-      </section>
-
-      <section className="landing-section">
-        <div className="landing-for-companies">
-          <div>
-            <h2>{t("landing.companiesTitle")}</h2>
-            <p>{t("landing.companiesBody")}</p>
+        <section className="landing-section landing-section-alt">
+          <div className="landing-section-heading">
+            <h2>{t("landing.aboutTitle")}</h2>
           </div>
-          <Link to="/signup?role=company" className="btn btn-secondary">
-            {t("landing.postListing")}
-          </Link>
-        </div>
-      </section>
+          <div className="landing-about">
+            <p>{t("landing.about1")}</p>
+            <p>{t("landing.about2")}</p>
+            <p className="landing-about-focus">{t("landing.about3")}</p>
+          </div>
+        </section>
+
+        <section className="landing-section">
+          <div className="landing-for-companies">
+            <div>
+              <h2>{t("landing.companiesTitle")}</h2>
+              <p>{t("landing.companiesBody")}</p>
+            </div>
+            <Link to="/signup?role=company" className="btn btn-secondary">
+              {t("landing.postListing")}
+            </Link>
+          </div>
+        </section>
+
+      </main>
 
       <footer className="landing-footer">
         <span className="wordmark">

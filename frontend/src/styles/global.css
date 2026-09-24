@@ -36,7 +36,9 @@
   --surface-alt: #f4f5f7;
   --text: #0d1321;
   --text-secondary: #565d6b;
-  --text-faint: #9aa1ac;
+  /* Lightest text colour — still 4.5:1 (WCAG AA) on both --surface and
+     --surface-alt. */
+  --text-faint: #676e7b;
   --border: #e3e5ea;
   --border-strong: #0d1321;
 
@@ -107,7 +109,7 @@
     --surface-alt: #1a2133;
     --text: #eef0f4;
     --text-secondary: #a7adba;
-    --text-faint: #6b7280;
+    --text-faint: #8a93a3;
     --border: #262d3f;
     --border-strong: #eef0f4;
 
@@ -145,7 +147,7 @@
   --surface-alt: #1a2133;
   --text: #eef0f4;
   --text-secondary: #a7adba;
-  --text-faint: #6b7280;
+  --text-faint: #8a93a3;
   --border: #262d3f;
   --border-strong: #eef0f4;
 
@@ -1500,7 +1502,8 @@ fieldset {
 .browse-sidebar {
   position: sticky;
   top: var(--space-4);
-  max-height: calc(100vh - var(--space-6));
+  /* Divided by the page zoom (larger text sizes), which also scales vh. */
+  max-height: calc((100vh - var(--space-6)) / var(--page-zoom, 1));
   overflow-y: auto;
   padding-right: var(--space-2);
   scrollbar-width: thin;
@@ -3637,9 +3640,315 @@ fieldset {
   position: absolute;
   top: var(--space-4);
   right: var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .auth-page,
 .gate-page {
   position: relative;
+}
+
+/* ================= Accessibility settings =================
+   Set from the accessibility menu (accessibility/settings.ts) as data
+   attributes on <html>. */
+
+/* --- High contrast: pure black/white text, darker borders, underlined
+   links. Light values first; dark ones below for both ways dark mode
+   can be on (system preference, or chosen in the app). --- */
+:root[data-contrast="high"] {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface-alt: #eeeeee;
+  --text: #000000;
+  --text-secondary: #1a1a1a;
+  --text-faint: #333333;
+  --border: #595959;
+  --border-strong: #000000;
+  --accent: #0a1a4d;
+  --accent-ink: #0a1a4d;
+  --accent-soft: #dde4f5;
+  --accent-contrast: #ffffff;
+  --steel: #3a4556;
+  --steel-ink: #1f2733;
+  --ok: #005c2e;
+  --review: #733900;
+  --blocked: #9e1208;
+  --brand-navy: #000000;
+  --brand-on-navy-secondary: #ffffff;
+  --brand-on-navy-border: rgba(255, 255, 255, 0.7);
+  --map-context: #e3e3e3;
+  --map-empty: #c7c7c7;
+  --focus-ring: 0 0 0 3px #000000;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-contrast="high"]:not([data-theme="light"]) {
+    --bg: #000000;
+    --surface: #000000;
+    --surface-alt: #141414;
+    --text: #ffffff;
+    --text-secondary: #f2f2f2;
+    --text-faint: #d4d4d4;
+    --border: #b3b3b3;
+    --border-strong: #ffffff;
+    --accent: #b3c5ff;
+    --accent-ink: #d1dcff;
+    --accent-soft: #0d1a40;
+    --accent-contrast: #000000;
+    --steel: #c9d1de;
+    --steel-ink: #e6ebf2;
+    --ok: #66e6a8;
+    --review: #ffc670;
+    --blocked: #ffa399;
+    --map-context: #1c1c1c;
+    --map-empty: #3a3a3a;
+    --focus-ring: 0 0 0 3px #ffffff;
+  }
+}
+
+:root[data-contrast="high"][data-theme="dark"] {
+  --bg: #000000;
+  --surface: #000000;
+  --surface-alt: #141414;
+  --text: #ffffff;
+  --text-secondary: #f2f2f2;
+  --text-faint: #d4d4d4;
+  --border: #b3b3b3;
+  --border-strong: #ffffff;
+  --accent: #b3c5ff;
+  --accent-ink: #d1dcff;
+  --accent-soft: #0d1a40;
+  --accent-contrast: #000000;
+  --steel: #c9d1de;
+  --steel-ink: #e6ebf2;
+  --ok: #66e6a8;
+  --review: #ffc670;
+  --blocked: #ffa399;
+  --map-context: #1c1c1c;
+  --map-empty: #3a3a3a;
+  --focus-ring: 0 0 0 3px #ffffff;
+}
+
+:root[data-contrast="high"] .input,
+:root[data-contrast="high"] .search-bar,
+:root[data-contrast="high"] .card,
+:root[data-contrast="high"] .listing-card {
+  border-color: var(--border-strong);
+}
+
+:root[data-contrast="high"] ::placeholder {
+  color: var(--text-secondary);
+  opacity: 1;
+}
+
+/* --- Underlined links (also part of high contrast): links are told apart
+   by more than colour. Button-styled links and the logo stay as they are. --- */
+:root[data-links="underline"] a:not(.btn):not(.wordmark),
+:root[data-contrast="high"] a:not(.btn):not(.wordmark) {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* --- Text size: scales the whole page, like browser zoom, since the
+   design sets sizes in px. --page-zoom lets viewport-height rules undo it. --- */
+:root[data-text-size="115"] {
+  zoom: 1.15;
+  --page-zoom: 1.15;
+}
+
+:root[data-text-size="130"] {
+  zoom: 1.3;
+  --page-zoom: 1.3;
+}
+
+/* Media queries still see the real window width under zoom, so the top
+   bar never switches to its narrower layout by itself — drop the email
+   address (as it does below 1100px) to keep the navigation in view. */
+:root[data-text-size] .topbar-email {
+  display: none;
+}
+
+/* --- Wider text spacing (WCAG 1.4.12 values). --- */
+:root[data-spacing="wide"] body * {
+  line-height: 1.6 !important;
+  letter-spacing: 0.06em !important;
+  word-spacing: 0.16em !important;
+}
+
+:root[data-spacing="wide"] p {
+  margin-bottom: 1.2em;
+}
+
+/* --- Reduce motion: switches off transitions and animations even when
+   the operating system doesn't ask for it. --- */
+:root[data-motion="reduce"] *,
+:root[data-motion="reduce"] *::before,
+:root[data-motion="reduce"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* --- The menu --- */
+.a11y-menu {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.a11y-menu-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.a11y-menu-button:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.topbar .a11y-menu-button,
+.landing-header .a11y-menu-button,
+.gate-page .a11y-menu-button {
+  border-color: var(--brand-on-navy-border);
+  background: transparent;
+  color: var(--brand-on-navy-secondary);
+}
+
+.topbar .a11y-menu-button:hover,
+.landing-header .a11y-menu-button:hover,
+.gate-page .a11y-menu-button:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+  color: var(--brand-on-navy);
+}
+
+.a11y-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  width: 290px;
+  max-width: calc(100vw - 32px);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-popover);
+  color: var(--text);
+  text-align: left;
+  outline: none;
+}
+
+.a11y-panel-title {
+  margin: 0 0 var(--space-3);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.a11y-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--border);
+}
+
+.a11y-toggle {
+  cursor: pointer;
+}
+
+.a11y-label {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.a11y-hint {
+  display: block;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.a11y-toggle input {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+}
+
+.a11y-sizes {
+  display: flex;
+  gap: 4px;
+}
+
+.a11y-size {
+  min-width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.a11y-size.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+.a11y-reset {
+  margin-top: var(--space-2);
+}
+
+/* On a phone the button isn't at the screen edge (the language menu is),
+   so a panel anchored to it would run off the left side — span the
+   screen instead. */
+@media (max-width: 480px) {
+  .a11y-panel {
+    position: fixed;
+    top: 64px;
+    left: var(--space-4);
+    right: var(--space-4);
+    width: auto;
+    max-width: none;
+  }
+}
+
+/* --- Skip link: the first thing Tab reaches, for keyboard and screen
+   reader users; hidden until focused. --- */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: var(--space-4);
+  z-index: 100;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.skip-link:focus {
+  top: var(--space-2);
+}
+
+.main-content:focus {
+  outline: none;
 }

@@ -23,6 +23,23 @@ export const fr: Messages = {
   "language.label": "Langue",
   "language.choose": "Choisir la langue",
 
+  // --- accessibility menu ---
+  "a11y.title": "Accessibilité",
+  "a11y.textSize": "Taille du texte",
+  "a11y.sizeNormal": "Texte normal",
+  "a11y.sizeLarge": "Grand texte",
+  "a11y.sizeLarger": "Très grand texte",
+  "a11y.highContrast": "Contraste élevé",
+  "a11y.highContrastHint": "Couleurs et contours plus marqués",
+  "a11y.underlineLinks": "Souligner les liens",
+  "a11y.underlineLinksHint": "Repérer facilement les liens",
+  "a11y.wideSpacing": "Espacement du texte élargi",
+  "a11y.wideSpacingHint": "Plus d'espace entre les lignes et les lettres",
+  "a11y.reduceMotion": "Réduire les animations",
+  "a11y.reduceMotionHint": "Désactiver les animations",
+  "a11y.reset": "Rétablir les réglages par défaut",
+  "a11y.skipToContent": "Aller au contenu",
+
   // --- top bar ---
   "nav.profile": "Profil",
   "nav.browse": "Offres",

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { AccessibilityMenu } from "../components/AccessibilityMenu";
 import { LanguageMenu } from "../components/LanguageMenu";
 import { T, useI18n } from "../i18n";
 import { errorText } from "../i18n/errors";
@@ -33,6 +34,7 @@ export function Login() {
   return (
     <div className="auth-page">
       <div className="corner-controls">
+        <AccessibilityMenu />
         <LanguageMenu />
       </div>
       <Link to="/" className="wordmark">

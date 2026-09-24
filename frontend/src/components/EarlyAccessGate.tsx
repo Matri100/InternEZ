@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useI18n } from "../i18n";
+import { AccessibilityMenu } from "./AccessibilityMenu";
 import { LanguageMenu } from "./LanguageMenu";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
@@ -66,6 +67,7 @@ export function EarlyAccessGate({ children }: { children: ReactNode }) {
     return (
       <div className="gate-page">
         <div className="corner-controls">
+          <AccessibilityMenu />
           <LanguageMenu />
         </div>
         <div className="gate-panel">
@@ -95,6 +97,7 @@ export function EarlyAccessGate({ children }: { children: ReactNode }) {
     return (
       <div className="gate-page">
         <div className="corner-controls">
+          <AccessibilityMenu />
           <LanguageMenu />
         </div>
         <div className="gate-panel">
