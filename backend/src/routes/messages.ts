@@ -48,9 +48,18 @@ messagesRouter.post("/conversations", writeLimiter, async (req, res) => {
       res.status(404).json({ error: "Applicant not found" });
       return;
     }
-    const allowed = applicant.discoverable || (await db.hasApplicantAppliedToCompany(otherPartyId, userId));
-    if (!allowed) {
+    const appliedHere = await db.hasApplicantAppliedToCompany(otherPartyId, userId);
+    if (!appliedHere && !applicant.discoverable) {
       res.status(403).json({ error: "You can only message applicants who applied to your listings or opted into discovery" });
+      return;
+    }
+    // Reaching out to someone who didn't apply is talent search, which
+    // needs a verified company (see routes/company.ts).
+    if (!appliedHere && !(await db.getCompany(userId))?.verified) {
+      res.status(403).json({
+        error: "Talent search opens once InternEZ has verified your company.",
+        code: "companyNotVerified",
+      });
       return;
     }
     applicantId = otherPartyId;

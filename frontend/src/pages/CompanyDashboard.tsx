@@ -4,11 +4,11 @@ import { api } from "../api/client";
 import { MetaRow } from "../components/MetaRow";
 import { deadlineLabel } from "../lib/listingFacts";
 import { useI18n } from "../i18n";
-import type { Company, Listing } from "../types/domain";
+import type { Company, CompanyListing } from "../types/domain";
 
 export function CompanyDashboard() {
   const { t, formatDate } = useI18n();
-  const [listings, setListings] = useState<Listing[] | null>(null);
+  const [listings, setListings] = useState<CompanyListing[] | null>(null);
   const [company, setCompany] = useState<Company | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
@@ -33,10 +33,10 @@ export function CompanyDashboard() {
     }
   }
 
-  async function duplicate(listing: Listing) {
+  async function duplicate(listing: CompanyListing) {
     setDuplicatingId(listing.id);
     try {
-      const { id, companyId, createdAt, ...input } = listing;
+      const { id, companyId, createdAt, removedAt, removedReason, ...input } = listing;
       const copy = await api.createListing({ ...input, title: `Copy of ${listing.title}` });
       navigate(`/company/listings/${copy.id}/edit`);
     } finally {
@@ -55,6 +55,15 @@ export function CompanyDashboard() {
           + Post a listing
         </Link>
       </div>
+
+      {company && !company.verified && (
+        <div className="banner verification-banner" role="status">
+          <strong>Your company is waiting for review.</strong> InternEZ checks every new company before students can
+          see its listings. You can prepare listings in the meantime; they go live
+          as soon as your company is verified, and talent search opens then too. A company email address on the same
+          domain as the website in your <Link to="/company">company profile</Link> makes the check quicker.
+        </div>
+      )}
 
       {!listings && <p style={{ color: "var(--text-secondary)" }}>Loading…</p>}
 
@@ -80,7 +89,22 @@ export function CompanyDashboard() {
         {listings?.map((listing) => (
           <div className="application-row" key={listing.id}>
             <div className="application-row-main">
-              <h3>{listing.title}</h3>
+              <h3>
+                {listing.title}
+                {listing.removedAt ? (
+                  <span className="status-badge moderation-removed" style={{ marginLeft: 8 }}>
+                    Removed by InternEZ
+                  </span>
+                ) : (
+                  company &&
+                  !company.verified && (
+                    <span className="status-badge moderation-pending" style={{ marginLeft: 8 }}>
+                      Hidden until verification
+                    </span>
+                  )
+                )}
+              </h3>
+              {listing.removedReason && <p className="moderation-reason">{listing.removedReason}</p>}
               <span className="company">
                 <MetaRow
                   items={[

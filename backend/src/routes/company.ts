@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type NextFunction, type Request, type Response } from "express";
 import { db } from "../models/store.js";
 import type {
   Applicant,
@@ -9,7 +9,7 @@ import type {
   TalentProfile,
 } from "../types/domain.js";
 import { EDUCATION_LEVEL_RANK } from "../data/reference.js";
-import { matchesSavedSearch } from "../services/savedSearch.js";
+import { notifySavedSearchMatches } from "../services/listingAlerts.js";
 import { detectListingLanguage } from "../services/language.js";
 import { writeLimiter } from "../middleware/rateLimit.js";
 
@@ -48,7 +48,9 @@ companyRouter.put("/", async (req, res) => {
   const body = req.body ?? {};
   const patch = {
     name: String(body.name ?? ""),
-    verified: false, // verification is a platform decision, never self-declared
+    // Ignored for an existing company — saveCompany never changes
+    // verification, which is the moderators' decision, never self-declared.
+    verified: false,
     logoUrl: body.logoUrl ?? null,
     description: String(body.description ?? ""),
     website: String(body.website ?? ""),
@@ -133,23 +135,11 @@ companyRouter.post("/listings", async (req, res) => {
   }
   const listing = await db.createListing(req.session.userId!, input);
 
-  // Event-driven instead of a polling job: check this one new listing
-  // against every applicant's saved searches right now, rather than
-  // periodically re-scanning all listings against all searches.
+  // An unverified company's listing stays hidden until the moderators
+  // verify it, and saved searches hear about it then instead (see
+  // routes/moderation.ts).
   const company = await db.getCompany(listing.companyId);
-  const savedSearches = company ? await db.listAllSavedSearches() : [];
-  for (const search of savedSearches) {
-    if (!matchesSavedSearch(listing, company!, search.filters)) continue;
-    await db.createNotification({
-      userId: search.applicantId,
-      role: "applicant",
-      type: "saved_search_match",
-      title: "New listing matches your saved search",
-      body: `"${listing.title}" matches your saved search "${search.name}".`,
-      params: { listingTitle: listing.title, searchName: search.name },
-      link: `/listings/${listing.id}`,
-    });
-  }
+  if (company?.verified) await notifySavedSearchMatches(listing, company);
 
   res.status(201).json(listing);
 });
@@ -276,6 +266,26 @@ companyRouter.get("/analytics", async (req, res) => {
 });
 
 // --- Talent discovery (opt-in applicants) ---
+
+// Students who opted into discovery share their CV and contact details
+// with companies, so only companies InternEZ has verified get to see them.
+async function requireVerifiedCompany(req: Request, res: Response, next: NextFunction) {
+  try {
+    const company = await db.getCompany(req.session.userId!);
+    if (!company?.verified) {
+      res.status(403).json({
+        error: "Talent search opens once InternEZ has verified your company.",
+        code: "companyNotVerified",
+      });
+      return;
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
+companyRouter.use("/talent", requireVerifiedCompany);
 
 companyRouter.get("/talent", async (req, res) => {
   const companyId = req.session.userId!;

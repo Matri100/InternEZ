@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { api } from "../api/client";
+import { api, ApiError } from "../api/client";
 import { EligibilityFlag } from "../components/EligibilityFlag";
 import { MatchBar } from "../components/MatchBar";
 import { MatchSummary } from "../components/MatchSummary";
 import { ApplyModal } from "../components/ApplyModal";
+import { ReportListingModal } from "../components/ReportListingModal";
 import { CompanyLogo } from "../components/CompanyLogo";
 import { Description } from "../components/Description";
 import { MetaRow } from "../components/MetaRow";
@@ -22,7 +23,9 @@ export function ListingDetail() {
   const { id } = useParams<{ id: string }>();
   const [listing, setListing] = useState<ListingWithComputed | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [removed, setRemoved] = useState(false);
   const [applying, setApplying] = useState(false);
+  const [reporting, setReporting] = useState(false);
   const [applied, setApplied] = useState(false);
   const { t, formatDate, languageName } = useI18n();
 
@@ -31,7 +34,10 @@ export function ListingDetail() {
     api
       .getListing(id)
       .then(setListing)
-      .catch(() => setNotFound(true));
+      .catch((err) => {
+        if (err instanceof ApiError && err.code === "listingRemoved") setRemoved(true);
+        else setNotFound(true);
+      });
   }, [id]);
 
   function toggleSave() {
@@ -42,11 +48,12 @@ export function ListingDetail() {
     call.catch(() => setListing((prev) => (prev ? { ...prev, saved: !nextSaved } : prev)));
   }
 
-  if (notFound) {
+  if (notFound || removed) {
     return (
       <div className="page page-narrow">
         <div className="empty-state">
-          <h3>{t("listing.notFound")}</h3>
+          <h3>{removed ? t("listing.removedTitle") : t("listing.notFound")}</h3>
+          {removed && <p>{t("listing.removedBody")}</p>}
           <Link to="/browse" className="btn btn-secondary" style={{ marginTop: 12 }}>
             {t("listing.backToBrowse")}
           </Link>
@@ -217,8 +224,24 @@ export function ListingDetail() {
           <button type="button" className="btn btn-primary" onClick={() => setApplying(true)} disabled={applied}>
             {applied ? t("listing.applied") : t("listing.apply")}
           </button>
+
+          {listing.reported ? (
+            <p className="report-link-done">{t("report.reported")}</p>
+          ) : (
+            <button type="button" className="report-link" onClick={() => setReporting(true)}>
+              {t("report.open")}
+            </button>
+          )}
         </div>
       </div>
+
+      {reporting && (
+        <ReportListingModal
+          listingId={listing.id}
+          onClose={() => setReporting(false)}
+          onReported={() => setListing((prev) => (prev ? { ...prev, reported: true } : prev))}
+        />
+      )}
 
       {applying && (
         <ApplyModal

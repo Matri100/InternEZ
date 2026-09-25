@@ -143,8 +143,9 @@ export function CompanyProfile() {
             </div>
           </div>
           <p className="field-hint">
-            Verification (the checkmark applicants see) is a platform decision, not self-declared — new company
-            accounts start unverified.
+            InternEZ reviews every new company before students can see its listings, and verified companies get the
+            checkmark applicants see. A company email address on the same
+            domain as this website makes the review quicker.
           </p>
         </section>
 

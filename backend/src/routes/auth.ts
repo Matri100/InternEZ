@@ -4,6 +4,8 @@ import { db } from "../models/store.js";
 import { hashPassword, verifyPassword } from "../services/passwords.js";
 import { generateResetToken, hashResetToken, RESET_TOKEN_TTL_MS } from "../services/passwordReset.js";
 import { sendEmail } from "../services/email.js";
+import { isAdmin } from "../services/admins.js";
+import { escapeHtml, notifyModerators } from "../services/moderation.js";
 import { authLimiter } from "../middleware/rateLimit.js";
 import type { AuthUser, UserRole } from "../types/domain.js";
 
@@ -90,6 +92,11 @@ authRouter.post("/signup", authLimiter, async (req, res) => {
       headquarters: null,
       companySize: null,
     });
+    const companyName = String(name ?? "").trim() || "(no name given)";
+    notifyModerators(`New company waiting for review: ${companyName}`, [
+      `<strong>${escapeHtml(companyName)}</strong> signed up with ${escapeHtml(normalizedEmail)}.`,
+      "Its listings stay hidden from students until you verify it.",
+    ]);
   }
 
   // Regenerating the session on the anonymous→authenticated transition
@@ -104,7 +111,7 @@ authRouter.post("/signup", authLimiter, async (req, res) => {
     }
     req.session.userId = id;
     req.session.role = role;
-    const user: AuthUser = { id, email: normalizedEmail, role };
+    const user: AuthUser = { id, email: normalizedEmail, role, isAdmin: isAdmin(id) };
     res.status(201).json(user);
   });
 });
@@ -124,6 +131,15 @@ authRouter.post("/login", authLimiter, async (req, res) => {
     res.status(401).json({ error: "Incorrect email or password", code: "wrongCredentials" });
     return;
   }
+  // Only said after the password checked out, so it can't be used to find
+  // out which addresses have (suspended) accounts.
+  if (stored.suspendedAt) {
+    res.status(403).json({
+      error: "This account has been suspended. If you think this is a mistake, write to hello@internez.eu.",
+      code: "accountSuspended",
+    });
+    return;
+  }
 
   req.session.regenerate((err) => {
     if (err) {
@@ -132,7 +148,7 @@ authRouter.post("/login", authLimiter, async (req, res) => {
     }
     req.session.userId = stored.id;
     req.session.role = stored.role;
-    const user: AuthUser = { id: stored.id, email: stored.email, role: stored.role };
+    const user: AuthUser = { id: stored.id, email: stored.email, role: stored.role, isAdmin: isAdmin(stored.id) };
     res.json(user);
   });
 });
@@ -201,6 +217,12 @@ authRouter.get("/me", async (req, res) => {
     res.json(null);
     return;
   }
-  const user: AuthUser = { id: stored.id, email: stored.email, role: stored.role };
+  // Suspending deletes the account's sessions already; this covers one
+  // that somehow survived.
+  if (stored.suspendedAt) {
+    req.session.destroy(() => res.json(null));
+    return;
+  }
+  const user: AuthUser = { id: stored.id, email: stored.email, role: stored.role, isAdmin: isAdmin(stored.id) };
   res.json(user);
 });

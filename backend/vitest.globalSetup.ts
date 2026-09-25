@@ -26,7 +26,7 @@ export default async function globalSetup() {
       interview_proposals, messages, conversations, notifications,
       reuse_answers, extension_tokens, voluntary_disclosures,
       saved_searches, saved_listings, shortlisted_candidates,
-      applications, listings, companies, applicants,
+      listing_reports, applications, listings, companies, applicants,
       password_reset_tokens, users, sessions
     CASCADE
   `);
