@@ -16,7 +16,8 @@ import { notificationsRouter } from "./routes/notifications.js";
 import { autofillRouter } from "./routes/autofill.js";
 import { earlyAccessRouter } from "./routes/earlyAccess.js";
 import { adminRouter } from "./routes/admin.js";
-import { requireApplicant, requireCompany, requireAuth } from "./middleware/auth.js";
+import { moderationRouter } from "./routes/moderation.js";
+import { requireAdmin, requireApplicant, requireCompany, requireAuth } from "./middleware/auth.js";
 import { requireEarlyAccess } from "./middleware/earlyAccess.js";
 
 const app = express();
@@ -101,6 +102,7 @@ app.use("/api/applications", requireApplicant, applicationsRouter);
 app.use("/api/company", requireCompany, companyRouter);
 app.use("/api/messages", requireAuth, messagesRouter);
 app.use("/api/notifications", requireAuth, notificationsRouter);
+app.use("/api/moderation", requireAuth, requireAdmin, moderationRouter);
 // No session middleware — the browser extension authenticates with its own
 // token (see routes/autofill.ts), not a same-origin cookie.
 app.use("/api/autofill", autofillRouter);

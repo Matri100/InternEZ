@@ -12,6 +12,7 @@ import type {
   ApplicationStatus,
   CertificationEntry,
   Company,
+  CompanyListing,
   Conversation,
   ConversationSummary,
   CoverLetterPrompts,
@@ -21,10 +22,13 @@ import type {
   InterviewProposal,
   InterviewProposalStatus,
   Listing,
+  ListingOrigin,
+  ListingReport,
   Message,
   Notification,
   NotificationType,
   ProjectEntry,
+  ReportReason,
   SavedSearch,
   SavedSearchFilters,
   UpcomingInterview,
@@ -39,6 +43,7 @@ interface UserRow {
   password_hash: string;
   role: UserRole;
   created_at: string;
+  suspended_at: string | null;
 }
 
 export interface StoredUser {
@@ -47,10 +52,55 @@ export interface StoredUser {
   passwordHash: string;
   role: UserRole;
   createdAt: string;
+  suspendedAt: string | null;
 }
 
 function userFromRow(row: UserRow): StoredUser {
-  return { id: row.id, email: row.email, passwordHash: row.password_hash, role: row.role, createdAt: row.created_at };
+  return {
+    id: row.id,
+    email: row.email,
+    passwordHash: row.password_hash,
+    role: row.role,
+    createdAt: row.created_at,
+    suspendedAt: row.suspended_at ?? null,
+  };
+}
+
+// Where a listing stands with the moderators, for routes that decide
+// whether an applicant may see or apply to it.
+export interface ListingVisibility {
+  origin: ListingOrigin;
+  companyVerified: boolean;
+  removedAt: string | null;
+  removedReason: string | null;
+}
+
+// A company account as the moderation page lists it — the reviewer hints
+// (personal email, domain match) are worked out in services/moderation.ts.
+export interface ModerationCompanyRow {
+  id: string;
+  name: string;
+  email: string;
+  website: string;
+  description: string;
+  headquarters: Company["headquarters"];
+  signedUpAt: string;
+  verified: boolean;
+  suspendedAt: string | null;
+  listingCount: number;
+}
+
+function reportFromRow(row: any): ListingReport {
+  return {
+    id: row.id,
+    listingId: row.listing_id,
+    reporterId: row.reporter_id,
+    reason: row.reason,
+    note: row.note,
+    createdAt: row.created_at,
+    resolvedAt: row.resolved_at,
+    resolution: row.resolution,
+  };
 }
 
 const EMPTY_COVER_LETTER_PROMPTS: CoverLetterPrompts = {
@@ -218,7 +268,7 @@ export const db = {
       input.role,
       createdAt,
     ]);
-    return { ...input, createdAt };
+    return { ...input, createdAt, suspendedAt: null };
   },
 
   async getUserByEmail(email: string): Promise<StoredUser | null> {
@@ -362,7 +412,9 @@ export const db = {
   // score or show a result card) — one query instead of one per listing.
   // Expired sourced listings drop out here, but getListing still returns
   // them, so a listing someone applied to or saved stays viewable after it
-  // closes.
+  // closes. Also hidden: listings the moderators removed, and anything a
+  // company posted before InternEZ verified it (sourced listings come from
+  // an employer's own careers site, so they need no verification here).
   async listVisibleListingRows(): Promise<{ listing: ListingRow; company: Company }[]> {
     const { rows } = await pool.query(
       `SELECT l.id, l.company_id, l.created_at, l.title, l.location, l.country, l.origin, l.department,
@@ -373,7 +425,9 @@ export const db = {
               c.name AS c_name, c.verified AS c_verified, c.logo_url AS c_logo_url, c.description AS c_description,
               c.website AS c_website, c.headquarters AS c_headquarters, c.company_size AS c_company_size
        FROM listings l JOIN companies c ON c.id = l.company_id
-       WHERE l.expires_at IS NULL OR l.expires_at > $1`,
+       WHERE (l.expires_at IS NULL OR l.expires_at > $1)
+         AND l.removed_at IS NULL
+         AND (l.origin = 'sourced' OR c.verified = 1)`,
       [new Date().toISOString()]
     );
     return rows.map((row) => {
@@ -399,9 +453,28 @@ export const db = {
     return rows[0] ? listingFromRow(rows[0]) : null;
   },
 
-  async listListingsByCompany(companyId: string): Promise<Listing[]> {
+  async listListingsByCompany(companyId: string): Promise<CompanyListing[]> {
     const { rows } = await pool.query(`SELECT * FROM listings WHERE company_id = $1 ORDER BY id DESC`, [companyId]);
-    return rows.map(listingFromRow);
+    return rows.map((row) => ({
+      ...listingFromRow(row),
+      removedAt: row.removed_at ?? null,
+      removedReason: row.removed_reason ?? null,
+    }));
+  },
+
+  async getListingVisibility(id: string): Promise<ListingVisibility | null> {
+    const { rows } = await pool.query(
+      `SELECT l.origin, l.removed_at, l.removed_reason, c.verified
+       FROM listings l JOIN companies c ON c.id = l.company_id WHERE l.id = $1`,
+      [id]
+    );
+    if (!rows[0]) return null;
+    return {
+      origin: rows[0].origin,
+      companyVerified: Boolean(rows[0].verified),
+      removedAt: rows[0].removed_at ?? null,
+      removedReason: rows[0].removed_reason ?? null,
+    };
   },
 
   async createListing(companyId: string, input: Omit<Listing, "id" | "companyId" | "createdAt">): Promise<Listing> {
@@ -505,12 +578,15 @@ export const db = {
     return rows[0] ? companyFromRow(rows[0]) : null;
   },
 
+  // `verified` only applies when the company is first created — after
+  // that it changes solely through setCompanyVerified (the moderators), so
+  // a company saving its own profile can never verify or unverify itself.
   async saveCompany(id: string, patch: Omit<Company, "id">): Promise<Company> {
     await pool.query(
       `INSERT INTO companies (id, name, verified, logo_url, description, website, headquarters, company_size)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        ON CONFLICT (id) DO UPDATE SET
-         name=excluded.name, verified=excluded.verified, logo_url=excluded.logo_url,
+         name=excluded.name, logo_url=excluded.logo_url,
          description=excluded.description, website=excluded.website, headquarters=excluded.headquarters,
          company_size=excluded.company_size`,
       [
@@ -1182,17 +1258,185 @@ export const db = {
     return results;
   },
 
+  // --- moderation (see routes/moderation.ts) ---
+
+  async setCompanyVerified(companyId: string, verified: boolean): Promise<boolean> {
+    const result = await pool.query(`UPDATE companies SET verified = $1 WHERE id = $2`, [verified ? 1 : 0, companyId]);
+    return (result.rowCount ?? 0) > 0;
+  },
+
+  // Suspending also signs the account out everywhere: its sessions are
+  // deleted, so it's locked out now rather than whenever its cookie expires.
+  async setUserSuspended(userId: string, suspended: boolean): Promise<boolean> {
+    return withTransaction(async (client) => {
+      const result = await client.query(`UPDATE users SET suspended_at = $1 WHERE id = $2`, [
+        suspended ? new Date().toISOString() : null,
+        userId,
+      ]);
+      if (suspended) {
+        await client.query(`DELETE FROM sessions WHERE data::jsonb ->> 'userId' = $1`, [userId]);
+      }
+      return (result.rowCount ?? 0) > 0;
+    });
+  },
+
+  // Removing a listing settles its open reports as acted on.
+  async removeListing(listingId: string, reason: string): Promise<boolean> {
+    return withTransaction(async (client) => {
+      const now = new Date().toISOString();
+      const result = await client.query(
+        `UPDATE listings SET removed_at = $1, removed_reason = $2 WHERE id = $3`,
+        [now, reason, listingId]
+      );
+      await client.query(
+        `UPDATE listing_reports SET resolved_at = $1, resolution = 'removed' WHERE listing_id = $2 AND resolved_at IS NULL`,
+        [now, listingId]
+      );
+      return (result.rowCount ?? 0) > 0;
+    });
+  },
+
+  async restoreListing(listingId: string): Promise<boolean> {
+    const result = await pool.query(`UPDATE listings SET removed_at = NULL, removed_reason = NULL WHERE id = $1`, [
+      listingId,
+    ]);
+    return (result.rowCount ?? 0) > 0;
+  },
+
+  async dismissListingReports(listingId: string): Promise<number> {
+    const result = await pool.query(
+      `UPDATE listing_reports SET resolved_at = $1, resolution = 'dismissed' WHERE listing_id = $2 AND resolved_at IS NULL`,
+      [new Date().toISOString(), listingId]
+    );
+    return result.rowCount ?? 0;
+  },
+
+  // null when this person already reported the listing (one report each).
+  async createListingReport(input: {
+    listingId: string;
+    reporterId: string;
+    reason: ReportReason;
+    note: string;
+  }): Promise<ListingReport | null> {
+    const { rows } = await pool.query(
+      `INSERT INTO listing_reports (id, listing_id, reporter_id, reason, note, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (listing_id, reporter_id) DO NOTHING
+       RETURNING *`,
+      [randomUUID(), input.listingId, input.reporterId, input.reason, input.note, new Date().toISOString()]
+    );
+    return rows[0] ? reportFromRow(rows[0]) : null;
+  },
+
+  async hasReportedListing(reporterId: string, listingId: string): Promise<boolean> {
+    const { rows } = await pool.query(`SELECT 1 FROM listing_reports WHERE reporter_id = $1 AND listing_id = $2`, [
+      reporterId,
+      listingId,
+    ]);
+    return rows.length > 0;
+  },
+
+  async listReportsByReporter(reporterId: string): Promise<ListingReport[]> {
+    const { rows } = await pool.query(
+      `SELECT * FROM listing_reports WHERE reporter_id = $1 ORDER BY created_at DESC`,
+      [reporterId]
+    );
+    return rows.map(reportFromRow);
+  },
+
+  // Every company that has a login (sourced employers have none, and
+  // aren't reviewed here), newest first.
+  async listModerationCompanies(): Promise<ModerationCompanyRow[]> {
+    const { rows } = await pool.query(
+      `SELECT c.id, c.name, c.website, c.description, c.headquarters, c.verified,
+              u.email, u.created_at, u.suspended_at,
+              (SELECT COUNT(*) FROM listings l WHERE l.company_id = c.id) AS listing_count
+       FROM companies c JOIN users u ON u.id = c.id AND u.role = 'company'
+       ORDER BY u.created_at DESC`
+    );
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      website: row.website,
+      description: row.description,
+      headquarters: row.headquarters,
+      signedUpAt: row.created_at,
+      verified: Boolean(row.verified),
+      suspendedAt: row.suspended_at ?? null,
+      listingCount: Number(row.listing_count),
+    }));
+  },
+
+  // Open reports, with the listing and company they're about and the
+  // reporter's email (so a moderator can follow up), oldest first.
+  async listOpenReports(): Promise<
+    (ListingReport & {
+      reporterEmail: string | null;
+      title: string;
+      companyId: string;
+      companyName: string;
+      origin: ListingOrigin;
+      removedAt: string | null;
+    })[]
+  > {
+    const { rows } = await pool.query(
+      `SELECT r.*, u.email AS reporter_email, l.title, l.company_id, l.origin, l.removed_at, c.name AS company_name
+       FROM listing_reports r
+       JOIN listings l ON l.id = r.listing_id
+       JOIN companies c ON c.id = l.company_id
+       LEFT JOIN users u ON u.id = r.reporter_id
+       WHERE r.resolved_at IS NULL
+       ORDER BY r.created_at ASC`
+    );
+    return rows.map((row) => ({
+      ...reportFromRow(row),
+      reporterEmail: row.reporter_email ?? null,
+      title: row.title,
+      companyId: row.company_id,
+      companyName: row.company_name,
+      origin: row.origin,
+      removedAt: row.removed_at ?? null,
+    }));
+  },
+
+  async listRemovedListings(): Promise<
+    { listingId: string; title: string; companyName: string; origin: ListingOrigin; removedAt: string; removedReason: string }[]
+  > {
+    const { rows } = await pool.query(
+      `SELECT l.id, l.title, l.origin, l.removed_at, l.removed_reason, c.name AS company_name
+       FROM listings l JOIN companies c ON c.id = l.company_id
+       WHERE l.removed_at IS NOT NULL
+       ORDER BY l.removed_at DESC`
+    );
+    return rows.map((row) => ({
+      listingId: row.id,
+      title: row.title,
+      companyName: row.company_name,
+      origin: row.origin,
+      removedAt: row.removed_at,
+      removedReason: row.removed_reason ?? "",
+    }));
+  },
+
+  async getUserEmails(userIds: string[]): Promise<string[]> {
+    if (userIds.length === 0) return [];
+    const { rows } = await pool.query(`SELECT email FROM users WHERE id = ANY($1)`, [userIds]);
+    return rows.map((row) => row.email);
+  },
+
   // --- account data export (GDPR-style "download my data") ---
   // Assembles a plain JSON snapshot from data this store already knows how
   // to fetch — deliberately not a new parallel query surface.
 
   async getApplicantExportData(applicantId: string) {
-    const [applicant, applications, savedListingIds, savedSearches, conversations] = await Promise.all([
+    const [applicant, applications, savedListingIds, savedSearches, conversations, listingReports] = await Promise.all([
       db.getApplicant(applicantId),
       db.listApplications(applicantId),
       db.listSavedListingIds(applicantId),
       db.listSavedSearches(applicantId),
       db.listConversations(applicantId, "applicant"),
+      db.listReportsByReporter(applicantId),
     ]);
 
     const conversationsWithMessages = await Promise.all(
@@ -1206,6 +1450,7 @@ export const db = {
       savedListingIds,
       savedSearches,
       conversations: conversationsWithMessages,
+      listingReports,
       notifications: await db.listNotifications(applicantId, "applicant", 10_000),
     };
   },
@@ -1257,6 +1502,7 @@ export const db = {
       await client.query(`DELETE FROM reuse_answers WHERE applicant_id = $1`, [applicantId]);
       await client.query(`DELETE FROM extension_tokens WHERE applicant_id = $1`, [applicantId]);
       await client.query(`DELETE FROM voluntary_disclosures WHERE applicant_id = $1`, [applicantId]);
+      await client.query(`DELETE FROM listing_reports WHERE reporter_id = $1`, [applicantId]);
       await client.query(`DELETE FROM applications WHERE applicant_id = $1`, [applicantId]);
       await client.query(`DELETE FROM notifications WHERE user_id = $1 AND role = 'applicant'`, [applicantId]);
       await client.query(`DELETE FROM applicants WHERE id = $1`, [applicantId]);

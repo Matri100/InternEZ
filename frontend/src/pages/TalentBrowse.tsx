@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api } from "../api/client";
+import { api, ApiError } from "../api/client";
 import { useReferenceData } from "../context/ReferenceData";
 import { ChipGroup } from "../components/ChipGroup";
 import { BookmarkIcon, SearchIcon, FilterIcon } from "../components/icons";
@@ -11,6 +11,7 @@ type QuickFilter = "all" | "shortlisted";
 export function TalentBrowse() {
   const { reference } = useReferenceData();
   const [talent, setTalent] = useState<TalentProfile[] | null>(null);
+  const [locked, setLocked] = useState(false);
   const [pokedIds, setPokedIds] = useState<Set<string>>(new Set());
   const [busyId, setBusyId] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -22,7 +23,13 @@ export function TalentBrowse() {
   const [countryFilter, setCountryFilter] = useState("");
 
   useEffect(() => {
-    api.getTalent().then(setTalent);
+    api
+      .getTalent()
+      .then(setTalent)
+      .catch((err) => {
+        if (err instanceof ApiError && err.code === "companyNotVerified") setLocked(true);
+        else throw err;
+      });
   }, []);
 
   const activeExtraFilters = workArrangements.length + (countryFilter ? 1 : 0);
@@ -79,6 +86,26 @@ export function TalentBrowse() {
     } finally {
       setBusyId(null);
     }
+  }
+
+  if (locked) {
+    return (
+      <div className="page">
+        <div className="page-header">
+          <div>
+            <h1>Discover talent</h1>
+            <p>Applicants who've opted in to be found — even for roles they haven't applied to.</p>
+          </div>
+        </div>
+        <div className="empty-state">
+          <h3>Opens once your company is verified</h3>
+          <p>
+            Students who opt in share their CV and contact details here, so only companies InternEZ has verified can
+            see them. We review every new company that signs up.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   if (!talent) {

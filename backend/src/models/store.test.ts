@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { db } from "./store.js";
+import { pool } from "../db/database.js";
 import type { Applicant, Listing } from "../types/domain.js";
 
 // db points at a real Postgres database (DATABASE_URL) for this whole file —
@@ -444,5 +445,106 @@ describe("account deletion", () => {
 
     expect(await db.getApplicant(bystanderId)).not.toBeNull();
     expect(await db.listSavedListingIds(bystanderId)).toContain(bystanderListing.id);
+  });
+});
+
+describe("moderation", () => {
+  async function visibleIds() {
+    return (await db.listVisibleListingRows()).map((r) => r.listing.id);
+  }
+
+  it("hides a direct listing until its company is verified", async () => {
+    const { companyId, listing } = await setupCompanyWithListing({ origin: "direct" });
+    expect(await visibleIds()).not.toContain(listing.id);
+
+    await db.setCompanyVerified(companyId, true);
+    expect(await visibleIds()).toContain(listing.id);
+  });
+
+  it("shows a sourced listing without any verification", async () => {
+    const { listing } = await setupCompanyWithListing({ origin: "sourced" });
+    expect(await visibleIds()).toContain(listing.id);
+  });
+
+  it("never lets a company's own profile save change its verification", async () => {
+    const { companyId } = await setupCompanyWithListing();
+    await db.setCompanyVerified(companyId, true);
+    const company = (await db.getCompany(companyId))!;
+
+    await db.saveCompany(companyId, { ...company, name: "Renamed", verified: false });
+    expect((await db.getCompany(companyId))!.verified).toBe(true);
+  });
+
+  it("hides a removed listing, tells its company why, and settles its open reports", async () => {
+    const { companyId, listing } = await setupCompanyWithListing({ origin: "direct" });
+    await db.setCompanyVerified(companyId, true);
+    const reporterId = await setupApplicant();
+    await db.createListingReport({ listingId: listing.id, reporterId, reason: "scam", note: "asked for a fee" });
+
+    await db.removeListing(listing.id, "Asked applicants for money");
+
+    expect(await visibleIds()).not.toContain(listing.id);
+    const own = (await db.listListingsByCompany(companyId)).find((l) => l.id === listing.id)!;
+    expect(own.removedReason).toBe("Asked applicants for money");
+    expect((await db.getListingVisibility(listing.id))!.removedAt).not.toBeNull();
+    expect((await db.listOpenReports()).filter((r) => r.listingId === listing.id)).toHaveLength(0);
+
+    await db.restoreListing(listing.id);
+    expect(await visibleIds()).toContain(listing.id);
+  });
+
+  it("takes one report per person per listing", async () => {
+    const { listing } = await setupCompanyWithListing({ origin: "sourced" });
+    const reporterId = await setupApplicant();
+
+    const first = await db.createListingReport({ listingId: listing.id, reporterId, reason: "closed", note: "" });
+    const second = await db.createListingReport({ listingId: listing.id, reporterId, reason: "scam", note: "" });
+
+    expect(first).not.toBeNull();
+    expect(second).toBeNull();
+    expect(await db.hasReportedListing(reporterId, listing.id)).toBe(true);
+    expect((await db.listOpenReports()).filter((r) => r.listingId === listing.id)).toHaveLength(1);
+
+    expect(await db.dismissListingReports(listing.id)).toBe(1);
+    expect((await db.listOpenReports()).filter((r) => r.listingId === listing.id)).toHaveLength(0);
+  });
+
+  it("signs a suspended account out everywhere, and lifts that cleanly", async () => {
+    const userId = randomUUID();
+    await db.createUser({ id: userId, email: `${userId}@test.dev`, passwordHash: "x", role: "company" });
+    const otherId = randomUUID();
+    await pool.query(`INSERT INTO sessions (sid, data, expires_at) VALUES ($1, $2, $3), ($4, $5, $3)`, [
+      `s-${userId}`,
+      JSON.stringify({ cookie: {}, userId, role: "company" }),
+      Date.now() + 60_000,
+      `s-${otherId}`,
+      JSON.stringify({ cookie: {}, userId: otherId, role: "applicant" }),
+    ]);
+
+    await db.setUserSuspended(userId, true);
+    expect((await db.getUserById(userId))!.suspendedAt).not.toBeNull();
+    const { rows } = await pool.query(`SELECT sid FROM sessions WHERE sid = ANY($1)`, [[`s-${userId}`, `s-${otherId}`]]);
+    expect(rows.map((r) => r.sid)).toEqual([`s-${otherId}`]);
+
+    await db.setUserSuspended(userId, false);
+    expect((await db.getUserById(userId))!.suspendedAt).toBeNull();
+  });
+
+  it("deletes a reporter's reports with their account", async () => {
+    const { listing } = await setupCompanyWithListing({ origin: "sourced" });
+    const reporterId = await setupApplicant();
+    await db.createListingReport({ listingId: listing.id, reporterId, reason: "other", note: "personal note" });
+
+    await db.deleteApplicantAccount(reporterId);
+    expect(await db.listReportsByReporter(reporterId)).toHaveLength(0);
+  });
+
+  it("lets a company delete a listing that has been reported", async () => {
+    const { companyId, listing } = await setupCompanyWithListing({ origin: "direct" });
+    const reporterId = await setupApplicant();
+    await db.createListingReport({ listingId: listing.id, reporterId, reason: "inaccurate", note: "" });
+
+    expect(await db.deleteListing(listing.id, companyId)).toBe(true);
+    expect(await db.hasReportedListing(reporterId, listing.id)).toBe(false);
   });
 });

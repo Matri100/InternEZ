@@ -7,6 +7,7 @@ import type {
   AuthUser,
   Company,
   CompanyAnalytics,
+  CompanyListing,
   ConversationSummary,
   ConversationThread,
   InterviewProposal,
@@ -15,8 +16,10 @@ import type {
   ListingSearchResult,
   ListingWithComputed,
   Message,
+  ModerationOverview,
   Notification,
   ReferenceData,
+  ReportReason,
   SavedSearch,
   SavedSearchFilters,
   TalentProfile,
@@ -115,6 +118,8 @@ export const api = {
   // `params` is a Browse URL query string (see lib/browseQuery.ts).
   searchListings: (params: string) => request<ListingSearchResult>(`/listings${params ? `?${params}` : ""}`),
   getListing: (id: string) => request<ListingWithComputed>(`/listings/${id}`),
+  reportListing: (id: string, input: { reason: ReportReason; note: string }) =>
+    request<{ ok: true }>(`/listings/${id}/report`, { method: "POST", body: JSON.stringify(input) }),
   getReusedAnswers: (id: string) =>
     request<{ answers: Record<string, string> }>(`/listings/${id}/reused-answers`).then((r) => r.answers),
 
@@ -138,7 +143,7 @@ export const api = {
     request<Company>("/company", { method: "PUT", body: JSON.stringify(company) }),
   deleteCompanyAccount: () => request<void>("/company/account", { method: "DELETE" }),
 
-  getCompanyListings: () => request<Listing[]>("/company/listings"),
+  getCompanyListings: () => request<CompanyListing[]>("/company/listings"),
   getCompanyListing: (id: string) => request<Listing>(`/company/listings/${id}`),
   createListing: (input: ListingInput) =>
     request<Listing>("/company/listings", { method: "POST", body: JSON.stringify(input) }),
@@ -185,6 +190,16 @@ export const api = {
       body: JSON.stringify({ response }),
     }),
   getUpcomingInterviews: () => request<UpcomingInterview[]>("/messages/interviews/upcoming"),
+
+  // --- Moderation (ADMIN_USER_IDS accounts only) ---
+  getModeration: () => request<ModerationOverview>("/moderation"),
+  moderateCompany: (id: string, action: "verify" | "unverify" | "suspend" | "unsuspend") =>
+    request<{ ok: true }>(`/moderation/companies/${id}/${action}`, { method: "POST" }),
+  removeListing: (id: string, reason: string) =>
+    request<{ ok: true }>(`/moderation/listings/${id}/remove`, { method: "POST", body: JSON.stringify({ reason }) }),
+  restoreListing: (id: string) => request<{ ok: true }>(`/moderation/listings/${id}/restore`, { method: "POST" }),
+  dismissReports: (id: string) =>
+    request<{ dismissed: number }>(`/moderation/listings/${id}/dismiss-reports`, { method: "POST" }),
 
   // --- Notifications (shared by both roles) ---
   getNotifications: () => request<Notification[]>("/notifications"),

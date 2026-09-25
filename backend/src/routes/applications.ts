@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "../models/store.js";
 import { computeEligibility } from "../services/eligibility.js";
 import { writeLimiter } from "../middleware/rateLimit.js";
+import { isOpenToApplicants } from "../services/moderation.js";
 import type { ApplicationWithListing } from "../types/domain.js";
 
 export const applicationsRouter = Router();
@@ -38,7 +39,7 @@ applicationsRouter.post("/", writeLimiter, async (req, res) => {
   }
 
   const listing = await db.getListing(listingId);
-  if (!listing) {
+  if (!listing || !isOpenToApplicants(await db.getListingVisibility(listingId))) {
     res.status(404).json({ error: "Listing not found" });
     return;
   }

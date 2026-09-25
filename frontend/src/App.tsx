@@ -25,12 +25,13 @@ import { CompanyDashboard } from "./pages/CompanyDashboard";
 import { CompanyApplicants } from "./pages/CompanyApplicants";
 import { TalentBrowse } from "./pages/TalentBrowse";
 import { CompanyAnalytics } from "./pages/CompanyAnalytics";
+import { Moderation } from "./pages/Moderation";
 import { NotificationBell } from "./components/NotificationBell";
 import { EarlyAccessGate } from "./components/EarlyAccessGate";
 import { AccessibilityMenu } from "./components/AccessibilityMenu";
 import { LanguageMenu } from "./components/LanguageMenu";
 import { SkipLink } from "./components/SkipLink";
-import { LogOutIcon, MoonIcon, SunIcon } from "./components/icons";
+import { LogOutIcon, MoonIcon, ShieldIcon, SunIcon } from "./components/icons";
 import { useI18n } from "./i18n";
 
 function PageLoading() {
@@ -144,6 +145,11 @@ function TopBar() {
           <span className="topbar-email" title={user?.email}>
             {user?.email}
           </span>
+          {user?.isAdmin && (
+            <NavLink to="/admin" className="icon-btn" aria-label={t("nav.moderation")} title={t("nav.moderation")}>
+              <ShieldIcon />
+            </NavLink>
+          )}
           <NotificationBell />
           <button
             type="button"
@@ -214,6 +220,7 @@ export default function App() {
 
             <Route element={<RequireAuth />}>
               <Route path="/messages" element={<Messages />} />
+              <Route path="/admin" element={<Moderation />} />
             </Route>
           </Route>
         </Routes>

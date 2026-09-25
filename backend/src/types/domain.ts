@@ -261,6 +261,9 @@ export interface ListingWithComputed extends Listing {
   eligibilityResult: EligibilityResult;
   match: MatchResult;
   saved: boolean;
+  // Whether this applicant has already reported the listing — only set on
+  // the single-listing view, where the report button lives.
+  reported?: boolean;
 }
 
 export interface ExtraAnswer {
@@ -332,6 +335,75 @@ export interface AuthUser {
   id: string;
   email: string;
   role: UserRole;
+  // A moderator (see ADMIN_USER_IDS) — an ordinary applicant or company
+  // account that can also open the moderation page.
+  isAdmin: boolean;
+}
+
+// --- moderation ---
+
+export type ReportReason = "scam" | "discriminatory" | "inaccurate" | "closed" | "other";
+
+export interface ListingReport {
+  id: string;
+  listingId: string;
+  reporterId: string;
+  reason: ReportReason;
+  note: string;
+  createdAt: string;
+  resolvedAt: string | null;
+  resolution: "removed" | "dismissed" | null;
+}
+
+// A company's own view of one of its listings: whether students can see
+// it, and if the moderators removed it, why.
+export interface CompanyListing extends Listing {
+  removedAt: string | null;
+  removedReason: string | null;
+}
+
+export interface ModerationCompany {
+  id: string;
+  name: string;
+  email: string;
+  website: string;
+  description: string;
+  headquarters: CountryCode | null;
+  signedUpAt: string;
+  verified: boolean;
+  suspendedAt: string | null;
+  listingCount: number;
+  // Hints for the reviewer, never an automatic decision: anyone can own
+  // a domain, and plenty of small real companies use a Gmail address.
+  personalEmail: boolean;
+  emailMatchesWebsite: boolean;
+}
+
+export interface ModerationReportedListing {
+  listingId: string;
+  title: string;
+  companyId: string;
+  companyName: string;
+  origin: ListingOrigin;
+  removedAt: string | null;
+  reports: (ListingReport & { reporterEmail: string | null })[];
+}
+
+export interface ModerationRemovedListing {
+  listingId: string;
+  title: string;
+  companyName: string;
+  origin: ListingOrigin;
+  removedAt: string;
+  removedReason: string;
+}
+
+export interface ModerationOverview {
+  pendingCompanies: ModerationCompany[];
+  verifiedCompanies: ModerationCompany[];
+  suspendedCompanies: ModerationCompany[];
+  reportedListings: ModerationReportedListing[];
+  removedListings: ModerationRemovedListing[];
 }
 
 // --- messaging ---
@@ -472,7 +544,9 @@ export type NotificationType =
   | "new_application"
   | "saved_search_match"
   | "interview_proposed"
-  | "interview_responded";
+  | "interview_responded"
+  | "company_verified"
+  | "listing_removed";
 
 export interface Notification {
   id: string;

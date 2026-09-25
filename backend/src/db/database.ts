@@ -289,6 +289,30 @@ await pool.query(`
   -- shown in the reader's language (see Notification.params).
   ALTER TABLE notifications ADD COLUMN IF NOT EXISTS params TEXT;
 
+  -- Moderation (see routes/moderation.ts). A suspended account can't sign
+  -- in; a removed listing is hidden from everyone but its own company,
+  -- which sees why. Both are timestamps rather than flags so the
+  -- moderation page can show when it happened.
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS suspended_at TEXT;
+  ALTER TABLE listings ADD COLUMN IF NOT EXISTS removed_at TEXT;
+  ALTER TABLE listings ADD COLUMN IF NOT EXISTS removed_reason TEXT;
+
+  -- An applicant flagging a listing for the moderators. One report per
+  -- person per listing, ever — a second one would add nothing the first
+  -- didn't say. Deleted with the listing (a company deleting its own
+  -- listing takes its reports with it) and with the reporter's account.
+  CREATE TABLE IF NOT EXISTS listing_reports (
+    id TEXT PRIMARY KEY,
+    listing_id TEXT NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+    reporter_id TEXT NOT NULL,
+    reason TEXT NOT NULL CHECK (reason IN ('scam', 'discriminatory', 'inaccurate', 'closed', 'other')),
+    note TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    resolved_at TEXT,
+    resolution TEXT CHECK (resolution IN ('removed', 'dismissed')),
+    UNIQUE (listing_id, reporter_id)
+  );
+
   -- One-time retirement of the hand-picked Greenhouse/Lever employer list,
   -- replaced by the Active Jobs DB feed (which covers those same ATSs).
   -- Idempotent: once set, expires_at is no longer NULL so this matches
@@ -327,4 +351,6 @@ await pool.query(`
   CREATE INDEX IF NOT EXISTS idx_shortlist_company ON shortlisted_candidates(company_id);
   CREATE INDEX IF NOT EXISTS idx_saved_searches_applicant ON saved_searches(applicant_id);
   CREATE INDEX IF NOT EXISTS idx_extension_tokens_applicant ON extension_tokens(applicant_id);
+  CREATE INDEX IF NOT EXISTS idx_listing_reports_listing ON listing_reports(listing_id);
+  CREATE INDEX IF NOT EXISTS idx_listing_reports_reporter ON listing_reports(reporter_id);
 `);
